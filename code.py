@@ -7,7 +7,11 @@ from google import genai
 # Load environment variables if dotenv is installed
 try:
     from dotenv import load_dotenv
-    load_dotenv()
+    import os
+    # Always load the .env file from the same directory as this script
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    env_path = os.path.join(script_dir, ".env")
+    load_dotenv(dotenv_path=env_path)
 except ImportError:
     pass
 
