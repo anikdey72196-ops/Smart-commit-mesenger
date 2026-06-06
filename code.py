@@ -3,6 +3,7 @@ import sys
 import argparse
 import os
 from google import genai
+import time
 
 # Load environment variables if dotenv is installed
 try:
@@ -70,18 +71,28 @@ def main():
         diff_text = diff_text[:3000] + "\n... (truncated)"
 
     # Generate commit message using Gemini
-    try:
-        client = genai.Client()  # expects GOOGLE_API_KEY env var
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=f'Generate a short, one-line commit message for this git diff. '
-                     f'Use Conventional Commits format (feat:, fix:, docs:, etc.). '
-                     f'Only output the message, no extra text.\n\nDiff:\n{diff_text}'
-        )
-        commit_msg = response.text.strip()
-    except Exception as e:
-        print(f"Error generating commit message: {e}")
-        sys.exit(1)
+    
+    max_retries = 3
+    commit_msg = None
+    client = genai.Client()  # expects GOOGLE_API_KEY env var
+
+    for attempt in range(max_retries):
+        try:
+            response = client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=f'Generate a short, one-line commit message for this git diff. '
+                         f'Use Conventional Commits format (feat:, fix:, docs:, etc.). '
+                         f'Only output the message, no extra text.\n\nDiff:\n{diff_text}'
+            )
+            commit_msg = response.text.strip()
+            break
+        except Exception as e:
+            if attempt < max_retries - 1:
+                print(f"API busy or error (attempt {attempt + 1}/{max_retries}). Retrying in 3 seconds...")
+                time.sleep(3)
+            else:
+                print(f"Error generating commit message after {max_retries} attempts: {e}")
+                sys.exit(1)
 
     print(f"Suggested message: {commit_msg}")
 
