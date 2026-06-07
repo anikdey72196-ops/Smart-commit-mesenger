@@ -4,8 +4,9 @@ import argparse
 import os
 from google import genai
 import time
-
-# Load environment variables if dotenv is installed
+import csv
+import datetime
+# Load environment variables 
 try:
     from dotenv import load_dotenv
     import os
@@ -50,7 +51,6 @@ def main():
     if not is_git_repo():
         print("Error: Not a git repository.")
         sys.exit(1)
-
     # Get staged changes first, fallback to unstaged
     diff_text = get_diff(staged=True)
     used_unstaged = False
@@ -112,6 +112,25 @@ def main():
         else:
             subprocess.run(["git", "commit", "-m", commit_msg], check=True)
         print("Committed!")
+        
+        # Log this commit to the global CSV file
+        try:
+            repo_name = os.path.basename(os.path.abspath(os.getcwd()))
+            owner_name = "anikdey72196"
+            commit_date = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")
+            
+            # Save the CSV in the same directory as this script (the master folder)
+            csv_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "commit_history.csv")
+            file_exists = os.path.isfile(csv_path)
+            
+            with open(csv_path, "a", newline="", encoding="utf-8") as csv_file:
+                writer = csv.writer(csv_file)
+                if not file_exists:
+                    writer.writerow(["Owner", "Repository", "Date", "Message"])
+                writer.writerow([owner_name, repo_name, commit_date, commit_msg])
+        except Exception as e:
+            print(f"Failed to save to CSV log: {e}")
+            
     else:
         print("Commit cancelled.")
 
