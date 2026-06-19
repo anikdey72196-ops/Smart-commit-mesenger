@@ -1,10 +1,25 @@
-import subprocess
+# Used to run Git terminal commands from within Python
+import subprocess 
+
+# Used to exit the script early if there are errors (e.g., sys.exit)
 import sys
+
+# Used to read command-line arguments like --yes and --dry-run
 import argparse
+
+# Used to interact with the operating system (e.g., file paths and folder names)
 import os
-from google import genai
+
+# Used to send HTTP requests to the local Ollama API
+import requests
+
+# Used to add a delay (sleep) before retrying if the API call fails
 import time
+
+# Used to write the commit data into the commit_history.csv log file
 import csv
+
+# Used to fetch the exact current date and time for the CSV log
 import datetime
 # Load environment variables 
 try:
@@ -15,7 +30,16 @@ try:
     env_path = os.path.join(script_dir, ".env")
     load_dotenv(dotenv_path=env_path)
 except ImportError:
-    pass
+    import os
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    env_path = os.path.join(script_dir, ".env")
+    if os.path.exists(env_path):
+        with open(env_path, "r") as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#") and "=" in line:
+                    key, val = line.split("=", 1)
+                    os.environ[key.strip()] = val.strip().strip("'\"")
 
 def is_git_repo():
     """Check if current directory is inside a git repo."""
@@ -26,9 +50,10 @@ def is_git_repo():
 def get_diff(staged=True):
     """Return git diff as string."""
     if staged:
-        cmd = ["git", "diff", "--cached"]
+        cmd = ["git", "diff", "--staged"]# Show staged changes (what you have 'git add' ed and are about to commit)
     else:
-        cmd = ["git", "diff"]
+        cmd = ["git", "diff"]   # Show unstaged changes (what you have modified but not yet run 'git add' on)
+
     result = subprocess.run(cmd, capture_output=True, text=True)
     return result.stdout
 
@@ -70,28 +95,30 @@ def main():
     if len(diff_text) > 3000:
         diff_text = diff_text[:3000] + "\n... (truncated)"
 
-    # Generate commit message using Gemini
+    # Generate commit message using local Ollama (Gemma 4)
     
     max_retries = 3
     commit_msg = None
-    client = genai.Client()  # expects GOOGLE_API_KEY env var
 
     for attempt in range(max_retries):
         try:
-            response = client.models.generate_content(
-                model="gemini-2.5-flash",
-                contents=f'Generate a short, one-line commit message for this git diff. '
-                         f'Use Conventional Commits format (feat:, fix:, docs:, etc.). '
-                         f'Only output the message, no extra text.\n\nDiff:\n{diff_text}'
-            )
-            commit_msg = response.text.strip()
+            response = requests.post('http://localhost:11434/api/generate', json={
+                "model": "gemma4:latest",
+                "prompt": f'Generate a short, one-line commit message for this git diff. '
+                          f'Use Conventional Commits format (feat:, fix:, docs:, etc.). '
+                          f'Only output the message, no extra text.\n\nDiff:\n{diff_text}',
+                "stream": False
+            })
+            response.raise_for_status()
+            commit_msg = response.json().get('response', '').strip()
             break
         except Exception as e:
             if attempt < max_retries - 1:
-                print(f"API busy or error (attempt {attempt + 1}/{max_retries}). Retrying in 3 seconds...")
+                print(f"Ollama busy or error (attempt {attempt + 1}/{max_retries}). Retrying in 3 seconds...")
                 time.sleep(3)
             else:
-                print(f"Error generating commit message after {max_retries} attempts: {e}")
+                print(f"Error generating commit message with Ollama after {max_retries} attempts: {e}")
+                print("Make sure Ollama is running in the background!")
                 sys.exit(1)
 
     print(f"Suggested message: {commit_msg}")
@@ -112,6 +139,14 @@ def main():
         else:
             subprocess.run(["git", "commit", "-m", commit_msg], check=True)
         print("Committed!")
+        
+        # Automatically push to remote
+        try:
+            print("Pushing to remote...")
+            subprocess.run(["git", "push"], check=True)
+            print("Pushed successfully!")
+        except Exception as e:
+            print(f"Failed to push to remote: {e}")
         
         # Log this commit to the global CSV file
         try:
