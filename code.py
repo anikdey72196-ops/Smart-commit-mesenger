@@ -1,27 +1,14 @@
-# Used to run Git terminal commands from within Python
+
 import subprocess 
-
-# Used to exit the script early if there are errors (e.g., sys.exit)
 import sys
-
-# Used to read command-line arguments like --yes and --dry-run
 import argparse
-
-# Used to interact with the operating system (e.g., file paths and folder names)
 import os
-
-# Used to send HTTP requests to the local Ollama API
 import requests
-
-# Used to add a delay (sleep) before retrying if the API call fails
 import time
-
-# Used to write the commit data into the commit_history.csv log file
 import csv
-
-# Used to fetch the exact current date and time for the CSV log
 import datetime
-# Load environment variables 
+
+
 try:
     from dotenv import load_dotenv
     import os
@@ -103,7 +90,7 @@ def main():
     for attempt in range(max_retries):
         try:
             response = requests.post('http://localhost:11434/api/generate', json={
-                "model": "gemma4:latest",
+                "model": "qwen2.5-coder:3b",
                 "prompt": f'Generate a short, one-line commit message for this git diff. '
                           f'Use Conventional Commits format (feat:, fix:, docs:, etc.). '
                           f'Only output the message, no extra text.\n\nDiff:\n{diff_text}',
