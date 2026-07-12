@@ -18,12 +18,11 @@ def fetch_and_save_commits():
             
             for commit_item in commits_data:
                 # Extract the required fields
-                repo_name = repo
                 commit_date = commit_item["commit"]["author"]["date"]
                 commit_message = commit_item["commit"]["message"]
                 
                 # Write to the CSV
-                writer.writerow([repo_name, commit_date, commit_message])
+                writer.writerow([repo, commit_date, commit_message])
                 
         print("Success! Open 'commit_history.csv' to see your data.")
     else:
