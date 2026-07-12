@@ -48,10 +48,12 @@ def get_diff_stats():
     """Return short stats of changes (files changed, insertions, deletions)."""
     result = subprocess.run(["git", "diff", "--cached", "--stat"],
                             capture_output=True, text=True)
-    if not result.stdout.strip():
+    out = result.stdout.strip()
+    if not out:
         result = subprocess.run(["git", "diff", "--stat"],
                                 capture_output=True, text=True)
-    return result.stdout.strip()
+        out = result.stdout.strip()
+    return out
 
 def main():
     parser = argparse.ArgumentParser(description="Smart commit message generator")
