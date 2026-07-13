@@ -9,15 +9,13 @@ import csv
 import datetime
 
 
+script_dir = os.path.dirname(os.path.abspath(__file__))
+env_path = os.path.join(script_dir, ".env")
 try:
     from dotenv import load_dotenv
     # Always load the .env file from the same directory as this script
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    env_path = os.path.join(script_dir, ".env")
     load_dotenv(dotenv_path=env_path)
 except ImportError:
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    env_path = os.path.join(script_dir, ".env")
     if os.path.exists(env_path):
         with open(env_path, "r") as f:
             for line in f:
