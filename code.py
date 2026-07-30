@@ -93,7 +93,7 @@ def main():
                           f'Use Conventional Commits format (feat:, fix:, docs:, etc.). '
                           f'Only output the message, no extra text.\n\nDiff:\n{diff_text}',
                 "stream": False
-            })
+            }, timeout=10)
             response.raise_for_status()
             commit_msg = response.json().get('response', '').strip()
             break
