@@ -140,7 +140,7 @@ def main():
             commit_date = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")
             
             # Save the CSV in the same directory as this script (the master folder)
-            csv_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "commit_history.csv")
+            csv_path = os.path.join(script_dir, "commit_history.csv")
             file_exists = os.path.isfile(csv_path)
             
             with open(csv_path, "a", newline="", encoding="utf-8") as csv_file:
