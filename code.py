@@ -8,6 +8,13 @@ import time
 import csv
 import datetime
 
+def sanitize_csv_field(field):
+    """Sanitize CSV field to prevent CSV Injection."""
+    field_str = str(field)
+    if field_str and field_str[0] in ('=', '+', '-', '@'):
+        return "'" + field_str
+    return field_str
+
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 env_path = os.path.join(script_dir, ".env")
@@ -147,7 +154,8 @@ def main():
                 writer = csv.writer(csv_file)
                 if not file_exists:
                     writer.writerow(["Owner", "Repository", "Date", "Message"])
-                writer.writerow([owner_name, repo_name, commit_date, commit_msg])
+
+                writer.writerow([sanitize_csv_field(owner_name), sanitize_csv_field(repo_name), sanitize_csv_field(commit_date), sanitize_csv_field(commit_msg)])
         except Exception as e:
             print(f"Failed to save to CSV log: {e}")
             
