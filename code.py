@@ -87,7 +87,7 @@ def main():
 
     for attempt in range(max_retries):
         try:
-            response = requests.post('http://localhost:11434/api/generate', json={
+            response = requests.post(os.getenv('OLLAMA_API_URL', 'http://localhost:11434/api/generate'), json={
                 "model": "qwen2.5-coder:7b",
                 "prompt": f'Generate a short, one-line commit message for this git diff. '
                           f'Use Conventional Commits format (feat:, fix:, docs:, etc.). '
