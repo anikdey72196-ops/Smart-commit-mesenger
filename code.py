@@ -27,7 +27,7 @@ except ImportError:
 def is_git_repo():
     """Check if current directory is inside a git repo."""
     result = subprocess.run(["git", "rev-parse", "--git-dir"],
-                            capture_output=True, text=True)
+                            capture_output=True, text=True, encoding='utf-8', errors='replace')
     return result.returncode == 0
 
 def get_diff(staged=True):
@@ -37,17 +37,17 @@ def get_diff(staged=True):
     else:
         cmd = ["git", "diff"]   # Show unstaged changes (what you have modified but not yet run 'git add' on)
 
-    result = subprocess.run(cmd, capture_output=True, text=True)
+    result = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', errors='replace')
     return result.stdout
 
 def get_diff_stats():
     """Return short stats of changes (files changed, insertions, deletions)."""
     result = subprocess.run(["git", "diff", "--cached", "--stat"],
-                            capture_output=True, text=True)
+                            capture_output=True, text=True, encoding='utf-8', errors='replace')
     out = result.stdout.strip()
     if not out:
         result = subprocess.run(["git", "diff", "--stat"],
-                                capture_output=True, text=True)
+                                capture_output=True, text=True, encoding='utf-8', errors='replace')
         out = result.stdout.strip()
     return out
 
