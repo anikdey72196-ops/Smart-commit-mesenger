@@ -16,13 +16,9 @@ def fetch_and_save_commits():
             writer = csv.writer(csv_file)
             writer.writerow(["Repository", "Date", "Message"])
             
-            for commit_item in commits_data:
-                # Extract the required fields
-                commit_date = commit_item["commit"]["author"]["date"]
-                commit_message = commit_item["commit"]["message"]
-                
-                # Write to the CSV
-                writer.writerow([repo, commit_date, commit_message])
+            writer.writerows(
+                ([repo, commit_item["commit"]["author"]["date"], commit_item["commit"]["message"]] for commit_item in commits_data)
+            )
                 
         print("Success! Open 'commit_history.csv' to see your data.")
     else:
