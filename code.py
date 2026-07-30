@@ -40,6 +40,13 @@ def get_diff(staged=True):
     result = subprocess.run(cmd, capture_output=True, text=True)
     return result.stdout
 
+def sanitize_csv_field(field):
+    """Sanitizes a field to prevent CSV Injection in spreadsheet applications."""
+    field_str = str(field).strip()
+    if field_str and field_str[0] in ('=', '+', '-', '@', '\t', '\r'):
+        return "'" + field_str
+    return field_str
+
 def get_diff_stats():
     """Return short stats of changes (files changed, insertions, deletions)."""
     result = subprocess.run(["git", "diff", "--cached", "--stat"],
@@ -147,7 +154,12 @@ def main():
                 writer = csv.writer(csv_file)
                 if not file_exists:
                     writer.writerow(["Owner", "Repository", "Date", "Message"])
-                writer.writerow([owner_name, repo_name, commit_date, commit_msg])
+
+                safe_owner = sanitize_csv_field(owner_name)
+                safe_repo = sanitize_csv_field(repo_name)
+                safe_msg = sanitize_csv_field(commit_msg)
+
+                writer.writerow([safe_owner, safe_repo, commit_date, safe_msg])
         except Exception as e:
             print(f"Failed to save to CSV log: {e}")
             
