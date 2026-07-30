@@ -40,16 +40,14 @@ def get_diff(staged=True):
     result = subprocess.run(cmd, capture_output=True, text=True)
     return result.stdout
 
-def get_diff_stats():
+def get_diff_stats(staged=True):
     """Return short stats of changes (files changed, insertions, deletions)."""
-    result = subprocess.run(["git", "diff", "--cached", "--stat"],
-                            capture_output=True, text=True)
-    out = result.stdout.strip()
-    if not out:
-        result = subprocess.run(["git", "diff", "--stat"],
-                                capture_output=True, text=True)
-        out = result.stdout.strip()
-    return out
+    if staged:
+        cmd = ["git", "diff", "--cached", "--stat"]
+    else:
+        cmd = ["git", "diff", "--stat"]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    return result.stdout.strip()
 
 def main():
     parser = argparse.ArgumentParser(description="Smart commit message generator")
@@ -73,7 +71,7 @@ def main():
         sys.exit(0)
 
     # Show diff stats before generating
-    stats = get_diff_stats()
+    stats = get_diff_stats(staged=not used_unstaged)
     print(f"\nChanges detected:\n{stats}\n")
 
     # Truncate diff if too long
