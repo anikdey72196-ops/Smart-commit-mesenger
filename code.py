@@ -85,13 +85,16 @@ def main():
     max_retries = 3
     commit_msg = None
 
+    # Sanitize diff to prevent prompt injection
+    safe_diff = diff_text.replace("<diff>", "&lt;diff&gt;").replace("</diff>", "&lt;/diff&gt;")
+
     for attempt in range(max_retries):
         try:
             response = requests.post('http://localhost:11434/api/generate', json={
                 "model": "qwen2.5-coder:7b",
                 "prompt": f'Generate a short, one-line commit message for this git diff. '
                           f'Use Conventional Commits format (feat:, fix:, docs:, etc.). '
-                          f'Only output the message, no extra text.\n\nDiff:\n{diff_text}',
+                          f'Only output the message, no extra text.\n\n<diff>\n{safe_diff}\n</diff>',
                 "stream": False
             }, timeout=10)
             response.raise_for_status()
