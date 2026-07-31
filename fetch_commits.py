@@ -1,6 +1,12 @@
 import requests
 import csv
 
+def sanitize_csv_field(field):
+    field_str = str(field)
+    if field_str.startswith(('=', '+', '-', '@')):
+        return "'" + field_str
+    return field_str
+
 def fetch_and_save_commits():
     owner = "facebook"
     repo = "react"
@@ -22,7 +28,7 @@ def fetch_and_save_commits():
                 commit_message = commit_item["commit"]["message"]
                 
                 # Write to the CSV
-                writer.writerow([repo, commit_date, commit_message])
+                writer.writerow([sanitize_csv_field(repo), sanitize_csv_field(commit_date), sanitize_csv_field(commit_message)])
                 
         print("Success! Open 'commit_history.csv' to see your data.")
     else:
