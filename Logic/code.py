@@ -9,6 +9,7 @@ def main():
     parser = argparse.ArgumentParser(description="Smart commit message generator")
     parser.add_argument("-y", "--yes", action="store_true", help="Skip confirmation")
     parser.add_argument("--dry-run", action="store_true", help="Only show message, don't commit")
+    
     args = parser.parse_args()
 
     # 1. Load Environment Variables (e.g. API keys if added later)

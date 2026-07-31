@@ -11,7 +11,7 @@ def generate_commit_message(diff_text):
         try:
             print("Suggested message: ", end="", flush=True)
             response = requests.post('http://localhost:11434/api/generate', json={
-                "model": "qwen2.5-coder:3b",
+                "model": "qwen2.5-coder:7b",
                 "prompt": f'Generate a short, one-line commit message for this git diff. '
                           f'Use Conventional Commits format (feat:, fix:, docs:, etc.). '
                           f'Only output the message, no extra text.\n\nDiff:\n{diff_text}',
@@ -20,7 +20,7 @@ def generate_commit_message(diff_text):
                 "options": {
                     "num_predict": 50
                 }
-            }, stream=True)
+            }, stream=True, timeout=30)
             response.raise_for_status()
             
             for line in response.iter_lines():
@@ -35,9 +35,9 @@ def generate_commit_message(diff_text):
             
         except Exception as e:
             if attempt < max_retries - 1:
-                print(f"\nOllama busy or error (attempt {attempt + 1}/{max_retries}). Retrying in 3 seconds...")
-                time.sleep(3)
+                print(f"\n[Attempt {attempt + 1}/{max_retries}] Connection issue ({e}). Retrying in 2 seconds...")
+                time.sleep(2)
             else:
-                print(f"\nError generating commit message with Ollama after {max_retries} attempts: {e}")
-                print("Make sure Ollama is running in the background!")
+                print(f"\nError generating commit message with Ollama: {e}")
+                print("Please check if Ollama is running in your system tray or terminal!")
                 sys.exit(1)
