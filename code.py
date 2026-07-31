@@ -27,7 +27,7 @@ except ImportError:
 def is_git_repo():
     """Check if current directory is inside a git repo."""
     result = subprocess.run(["git", "rev-parse", "--git-dir"],
-                            capture_output=True, text=True)
+                            capture_output=True, text=True, encoding='utf-8', errors='replace')
     return result.returncode == 0
 
 def get_diff(staged=True):
@@ -37,17 +37,17 @@ def get_diff(staged=True):
     else:
         cmd = ["git", "diff"]   # Show unstaged changes (what you have modified but not yet run 'git add' on)
 
-    result = subprocess.run(cmd, capture_output=True, text=True)
+    result = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', errors='replace')
     return result.stdout
 
 def get_diff_stats():
     """Return short stats of changes (files changed, insertions, deletions)."""
     result = subprocess.run(["git", "diff", "--cached", "--stat"],
-                            capture_output=True, text=True)
+                            capture_output=True, text=True, encoding='utf-8', errors='replace')
     out = result.stdout.strip()
     if not out:
         result = subprocess.run(["git", "diff", "--stat"],
-                                capture_output=True, text=True)
+                                capture_output=True, text=True, encoding='utf-8', errors='replace')
         out = result.stdout.strip()
     return out
 
@@ -85,15 +85,18 @@ def main():
     max_retries = 3
     commit_msg = None
 
+    # Sanitize diff to prevent prompt injection
+    safe_diff = diff_text.replace("<diff>", "&lt;diff&gt;").replace("</diff>", "&lt;/diff&gt;")
+
     for attempt in range(max_retries):
         try:
             response = requests.post('http://localhost:11434/api/generate', json={
                 "model": "qwen2.5-coder:7b",
                 "prompt": f'Generate a short, one-line commit message for this git diff. '
                           f'Use Conventional Commits format (feat:, fix:, docs:, etc.). '
-                          f'Only output the message, no extra text.\n\nDiff:\n{diff_text}',
+                          f'Only output the message, no extra text.\n\n<diff>\n{safe_diff}\n</diff>',
                 "stream": False
-            })
+            }, timeout=10)
             response.raise_for_status()
             commit_msg = response.json().get('response', '').strip()
             break
@@ -140,7 +143,7 @@ def main():
             commit_date = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")
             
             # Save the CSV in the same directory as this script (the master folder)
-            csv_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "commit_history.csv")
+            csv_path = os.path.join(script_dir, "commit_history.csv")
             file_exists = os.path.isfile(csv_path)
             
             with open(csv_path, "a", newline="", encoding="utf-8") as csv_file:
