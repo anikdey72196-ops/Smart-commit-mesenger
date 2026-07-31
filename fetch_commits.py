@@ -7,7 +7,7 @@ def fetch_and_save_commits():
     api_url = f"https://api.github.com/repos/{owner}/{repo}/commits"
 
     print(f"Fetching data from {api_url}...")
-    response = requests.get(api_url)
+    response = requests.get(api_url, timeout=10)
 
     if response.status_code == 200:
         commits_data = response.json()
