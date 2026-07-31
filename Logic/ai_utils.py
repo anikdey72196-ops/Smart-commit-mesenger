@@ -11,12 +11,12 @@ def generate_commit_message(diff_text):
         try:
             print("Suggested message: ", end="", flush=True)
             response = requests.post('http://localhost:11434/api/generate', json={
-                "model": "qwen2.5-coder:7b",
+                "model": "qwen2.5-coder:3b",
                 "prompt": f'Generate a short, one-line commit message for this git diff. '
                           f'Use Conventional Commits format (feat:, fix:, docs:, etc.). '
                           f'Only output the message, no extra text.\n\nDiff:\n{diff_text}',
                 "stream": True,
-                "keep_alive": "-1",
+                "keep_alive": -1,
                 "options": {
                     "num_predict": 50
                 }

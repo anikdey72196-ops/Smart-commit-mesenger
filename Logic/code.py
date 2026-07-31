@@ -1,9 +1,9 @@
 import sys
 import argparse
-from Logic.config import load_environment
-from Logic.git_utils import is_git_repo, get_diff, get_diff_stats, commit_and_push
+from config import load_environment
+from git_utils import is_git_repo, get_diff, get_diff_stats, commit_and_push
 from ai_utils import generate_commit_message
-from Logic.logger import log_commit
+from logger import log_commit
 
 def main():
     parser = argparse.ArgumentParser(description="Smart commit message generator")
