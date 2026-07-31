@@ -1,3 +1,6 @@
 .env
 commit_history.csv
 smartcommit.bat
+venv/
+__pycache__/
+*.pyc
