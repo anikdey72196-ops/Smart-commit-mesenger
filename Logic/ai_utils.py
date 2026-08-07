@@ -2,16 +2,20 @@ import requests
 import time
 import sys
 import json
+import os
 
 def generate_commit_message(diff_text):
     max_retries = 3
     commit_msg_parts = []
-
+    model_name = os.getenv("OLLAMA_MODEL", "qwen2.5-coder:7b")
+    host_url = os.getenv("OLLAMA_HOST", "http://localhost:11434").rstrip("/")
+    api_endpoint = f"{host_url}/api/generate"
     for attempt in range(max_retries):
         try:
             print("Suggested message: ", end="", flush=True)
-            response = requests.post('http://localhost:11434/api/generate', json={
-                "model": "qwen2.5-coder:3b",
+            response = requests.post(api_endpoint,
+            json={
+                "model": model_name,
                 "prompt": f'Generate a short, one-line commit message for this git diff. '
                           f'Use Conventional Commits format (feat:, fix:, docs:, etc.). '
                           f'Only output the message, no extra text.\n\nDiff:\n{diff_text}',

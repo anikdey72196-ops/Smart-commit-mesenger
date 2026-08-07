@@ -9,7 +9,7 @@ def load_environment():
         load_dotenv(dotenv_path=env_path)
     except ImportError:
         if os.path.exists(env_path):
-            with open(env_path, "r") as f:
+            with open(env_path, "r", encoding="utf-8") as f:
                 for line in f:
                     line = line.strip()
                     if line and not line.startswith("#") and "=" in line:

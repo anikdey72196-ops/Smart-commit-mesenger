@@ -1,11 +1,22 @@
+import subprocess
 import os
 import csv
 import datetime
 
+def get_git_owner():
+    try:
+        res = subprocess.run(["git", "config", "user.name"], capture_output=True, text=True, encoding="utf-8")
+        name = res.stdout.strip()
+        if name:
+            return name
+    except Exception:
+        pass
+    return "anikdey72196"
+
 def log_commit(commit_msg):
     try:
         repo_name = os.path.basename(os.path.abspath(os.getcwd()))
-        owner_name = "anikdey72196"
+        owner_name = get_git_owner()
         commit_date = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")
         
         # Save the CSV in the parent directory (the master folder)
