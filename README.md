@@ -6,6 +6,7 @@ An AI-powered Git workflow automation tool that automatically generates Conventi
 
 ## 🌟 Key Features
 
+- 🎯 **Multiple Commit Message Choices**: AI generates 3 distinct commit options (short, scoped, action-oriented) so you can pick your favorite, edit it, or write your own.
 - 🧠 **Local & Private AI**: Runs 100% locally using [Ollama](https://ollama.com/) (`qwen2.5-coder`), keeping your code completely private.
 - ⚡ **One-Command Workflow**: Replaces `git add`, `git commit`, and `git push` with a single command: `smartcommit`.
 - 📁 **Auto-Detects Untracked Files**: Automatically stages brand-new files with `git add .`.
@@ -132,17 +133,25 @@ Then run `source ~/.zshrc` or `source ~/.bashrc`.
    ```bash
    smartcommit
    ```
-4. The local AI will analyze your diff and stream a suggested commit message:
+4. The local AI will analyze your diff and output 3 distinct commit options:
    ```text
    Changes detected:
-   1 file changed, 5 insertions(+)
+   1 file changed, 12 insertions(+)
 
-   Suggested message: feat(auth): add JWT token validation for user login
-   Use this message? (y/n):
+   🤖 Thinking and generating commit message options...
+
+   Suggested commit message options:
+     [1] feat(auth): add JWT token validation for user login
+     [2] feat: implement secure user authentication
+     [3] refactor: clean up login verification logic
+     [e] Edit / Enter custom message
+     [c] Cancel commit
+
+   Select an option (1-3, e, c) [default 1]:
    ```
-5. Type `y` and hit Enter! The tool will:
-   - Stage untracked files automatically (`git add .`)
-   - Commit changes with the AI message
+5. Choose `1`, `2`, `3`, hit Enter for option 1, or type `e` to edit! The tool will automatically:
+   - Stage untracked files (`git add .`)
+   - Commit changes with your selected message
    - Push to your active GitHub branch
    - Log the entry in `commit_history.csv`
 

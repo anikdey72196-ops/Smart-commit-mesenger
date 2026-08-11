@@ -2,13 +2,13 @@ import sys
 import argparse
 from config import load_environment
 from git_utils import is_git_repo, get_diff, get_diff_stats, commit_and_push
-from ai_utils import generate_commit_message
+from ai_utils import generate_commit_options
 from logger import log_commit
 
 def main():
     parser = argparse.ArgumentParser(description="Smart commit message generator")
-    parser.add_argument("-y", "--yes", action="store_true", help="Skip confirmation")
-    parser.add_argument("--dry-run", action="store_true", help="Only show message, don't commit")
+    parser.add_argument("-y", "--yes", action="store_true", help="Skip confirmation and auto-select first option")
+    parser.add_argument("--dry-run", action="store_true", help="Only show messages, don't commit")
     
     args = parser.parse_args()
 
@@ -39,25 +39,53 @@ def main():
     if len(diff_text) > 3000:
         diff_text = diff_text[:3000] + "\n... (truncated)"
 
-    # 6. Generate commit message using AI
-    commit_msg = generate_commit_message(diff_text)
+    # 6. Generate commit options using AI
+    print("🤖 Thinking and generating commit message options...\n")
+    options = generate_commit_options(diff_text)
+
+    if not options:
+        print("Error: Could not generate commit message options.")
+        sys.exit(1)
+
+    print("Suggested commit message options:")
+    for idx, opt in enumerate(options, 1):
+        print(f"  [{idx}] {opt}")
+    print("  [e] Edit / Enter custom message")
+    print("  [c] Cancel commit")
+    print()
 
     if args.dry_run:
-        print("\n[Dry run] Not committing.")
+        print("[Dry run] Not committing.")
         sys.exit(0)
 
-    # 7. Ask for confirmation
+    # 7. Select option or accept custom input
     if args.yes:
-        confirm = 'y'
+        selected_msg = options[0]
+        print(f"Auto-selected option [1]: {selected_msg}")
     else:
-        confirm = input(f"Use this message? (y/n): ").lower()
+        choice = input(f"Select an option (1-{len(options)}, e, c) [default 1]: ").strip().lower()
+        if choice in ["", "1"]:
+            selected_msg = options[0]
+        elif choice == "2" and len(options) >= 2:
+            selected_msg = options[1]
+        elif choice == "3" and len(options) >= 3:
+            selected_msg = options[2]
+        elif choice in ["e", "edit"]:
+            custom_msg = input("Enter your custom commit message: ").strip()
+            if not custom_msg:
+                print("No message entered. Commit cancelled.")
+                sys.exit(0)
+            selected_msg = custom_msg
+        elif choice in ["c", "cancel", "n", "no"]:
+            print("Commit cancelled.")
+            sys.exit(0)
+        else:
+            print("Invalid selection. Commit cancelled.")
+            sys.exit(0)
 
     # 8. Execute Commit, Push, and Log
-    if confirm == 'y' or confirm == 'yes':
-        commit_and_push(commit_msg, used_unstaged)
-        log_commit(commit_msg)
-    else:
-        print("Commit cancelled.")
+    commit_and_push(selected_msg, used_unstaged)
+    log_commit(selected_msg)
 
 if __name__ == "__main__":
-    main()
+    main()
