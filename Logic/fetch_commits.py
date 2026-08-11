@@ -1,5 +1,6 @@
 import requests
 import csv
+import sys
 
 def sanitize_csv_field(field):
     field_str = str(field)
@@ -7,9 +8,7 @@ def sanitize_csv_field(field):
         return "'" + field_str
     return field_str
 
-def fetch_and_save_commits():
-    owner = "facebook"
-    repo = "react"
+def fetch_and_save_commits(owner="facebook", repo="react"):
     api_url = f"https://api.github.com/repos/{owner}/{repo}/commits"
 
     print(f"Fetching data from {api_url}...")
@@ -35,4 +34,6 @@ def fetch_and_save_commits():
         print(f"Error: Could not connect to API. Status code {response.status_code}")
 
 if __name__ == "__main__":
-    fetch_and_save_commits()
+    owner = sys.argv[1] if len(sys.argv) > 1 else "facebook"
+    repo = sys.argv[2] if len(sys.argv) > 2 else "react"
+    fetch_and_save_commits(owner, repo)
