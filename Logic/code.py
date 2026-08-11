@@ -1,9 +1,18 @@
 import sys
 import argparse
 from config import load_environment
-from git_utils import is_git_repo, get_diff, get_diff_stats, commit_and_push
+from git_utils import is_git_repo, get_current_branch, get_diff, get_diff_stats, commit_and_push
 from ai_utils import generate_commit_options
 from logger import log_commit
+from ui_utils import (
+    print_banner,
+    print_diff_stats,
+    print_options,
+    print_success,
+    print_warning,
+    print_error,
+    Spinner
+)
 
 def main():
     parser = argparse.ArgumentParser(description="Smart commit message generator")
@@ -12,15 +21,20 @@ def main():
     
     args = parser.parse_args()
 
-    # 1. Load Environment Variables (e.g. API keys if added later)
+    # 1. Load Environment Variables
     load_environment()
 
-    # 2. Validate git repository
+    # 2. Print Stylish Banner
+    print_banner()
+
+    # 3. Validate git repository
     if not is_git_repo():
-        print("Error: Not a git repository.")
+        print_error("Error: Not a git repository.")
         sys.exit(1)
         
-    # 3. Get changes (staged first, fallback to unstaged)
+    branch_name = get_current_branch()
+
+    # 4. Get changes (staged first, fallback to unstaged)
     diff_text = get_diff(staged=True)
     used_unstaged = False
     if not diff_text.strip():
@@ -28,42 +42,37 @@ def main():
         used_unstaged = True
 
     if not diff_text.strip():
-        print("No changes to commit.")
+        print_warning("No staged or unstaged changes detected to commit.")
         sys.exit(0)
 
-    # 4. Show diff stats before generating
+    # 5. Show formatted diff stats
     stats = get_diff_stats()
-    print(f"\nChanges detected:\n{stats}\n")
+    print_diff_stats(stats, branch_name=branch_name)
 
-    # 5. Truncate diff if too long to prevent LLM overload
+    # 6. Truncate diff if too long to prevent LLM overload
     if len(diff_text) > 3000:
         diff_text = diff_text[:3000] + "\n... (truncated)"
 
-    # 6. Generate commit options using AI
-    print("🤖 Thinking and generating commit message options...\n")
-    options = generate_commit_options(diff_text)
+    # 7. Generate commit options with Animated Spinner
+    with Spinner("Analyzing diff & generating commit message options..."):
+        options = generate_commit_options(diff_text)
 
     if not options:
-        print("Error: Could not generate commit message options.")
+        print_error("Error: Could not generate commit message options.")
         sys.exit(1)
 
-    print("Suggested commit message options:")
-    for idx, opt in enumerate(options, 1):
-        print(f"  [{idx}] {opt}")
-    print("  [e] Edit / Enter custom message")
-    print("  [c] Cancel commit")
-    print()
+    print_options(options)
 
     if args.dry_run:
-        print("[Dry run] Not committing.")
+        print_warning("[Dry run] Skipping commit & push.")
         sys.exit(0)
 
-    # 7. Select option or accept custom input
+    # 8. Select option or accept custom input
     if args.yes:
         selected_msg = options[0]
-        print(f"Auto-selected option [1]: {selected_msg}")
+        print_success(f"Auto-selected option [1]: {selected_msg}")
     else:
-        choice = input(f"Select an option (1-{len(options)}, e, c) [default 1]: ").strip().lower()
+        choice = input(f"Select option (1-{len(options)}, e, c) [default 1]: ").strip().lower()
         if choice in ["", "1"]:
             selected_msg = options[0]
         elif choice == "2" and len(options) >= 2:
@@ -73,19 +82,20 @@ def main():
         elif choice in ["e", "edit"]:
             custom_msg = input("Enter your custom commit message: ").strip()
             if not custom_msg:
-                print("No message entered. Commit cancelled.")
+                print_warning("No message entered. Commit cancelled.")
                 sys.exit(0)
             selected_msg = custom_msg
         elif choice in ["c", "cancel", "n", "no"]:
-            print("Commit cancelled.")
+            print_warning("Commit cancelled.")
             sys.exit(0)
         else:
-            print("Invalid selection. Commit cancelled.")
+            print_error("Invalid selection. Commit cancelled.")
             sys.exit(0)
 
-    # 8. Execute Commit, Push, and Log
+    # 9. Execute Commit, Push, and Log
     commit_and_push(selected_msg, used_unstaged)
     log_commit(selected_msg)
 
 if __name__ == "__main__":
-    main()
+    main()
+

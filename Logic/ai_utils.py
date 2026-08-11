@@ -10,6 +10,12 @@ def generate_commit_options(diff_text):
     max_retries = 3
     model_name = os.getenv("OLLAMA_MODEL", "qwen2.5-coder:7b")
     host_url = os.getenv("OLLAMA_HOST", "http://localhost:11434").rstrip("/")
+    if "0.0.0.0" in host_url:
+        host_url = host_url.replace("0.0.0.0", "localhost")
+    if not host_url.startswith("http://") and not host_url.startswith("https://"):
+        host_url = f"http://{host_url}"
+    if ":" not in host_url.replace("http://", "").replace("https://", ""):
+        host_url = f"{host_url}:11434"
     api_endpoint = f"{host_url}/api/generate"
 
     prompt = (
