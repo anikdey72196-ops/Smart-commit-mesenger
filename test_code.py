@@ -1,13 +1,16 @@
 import unittest
 import sys
 import os
+import tempfile
 from unittest.mock import patch, MagicMock
 
 # Add Logic directory to sys.path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "Logic"))
 
+import logger
 from git_utils import get_diff
 from ai_utils import parse_options_from_response
+from logger import sanitize_for_csv, log_commit
 
 class TestGitUtils(unittest.TestCase):
     @patch('subprocess.run')
@@ -48,6 +51,31 @@ class TestAIUtils(unittest.TestCase):
         options = parse_options_from_response(list_input)
         self.assertEqual(len(options), 3)
         self.assertEqual(options[0], "feat: option one")
+
+class TestLoggerUtils(unittest.TestCase):
+    def test_sanitize_for_csv(self):
+        self.assertEqual(sanitize_for_csv("=1+2"), "'=1+2")
+        self.assertEqual(sanitize_for_csv("+cmd|' /C calc'!A0"), "'+cmd|' /C calc'!A0")
+        self.assertEqual(sanitize_for_csv("-100"), "'-100")
+        self.assertEqual(sanitize_for_csv("@SUM(A1:A10)"), "'@SUM(A1:A10)")
+        self.assertEqual(sanitize_for_csv("\tval"), "'\tval")
+        self.assertEqual(sanitize_for_csv("\rval"), "'\rval")
+        self.assertEqual(sanitize_for_csv("Normal message"), "Normal message")
+        self.assertEqual(sanitize_for_csv(123), 123)
+
+    def test_log_commit_sanitizes_formula(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            dummy_script_dir = os.path.join(tmp_dir, "Logic")
+            os.makedirs(dummy_script_dir, exist_ok=True)
+            dummy_logger_file = os.path.join(dummy_script_dir, "logger.py")
+
+            with patch.object(logger, '__file__', dummy_logger_file):
+                log_commit("=SUM(1,2)")
+                csv_path = os.path.join(tmp_dir, "commit_history.csv")
+                self.assertTrue(os.path.isfile(csv_path))
+                with open(csv_path, "r", encoding="utf-8") as f:
+                    content = f.read()
+                    self.assertIn("'=SUM(1,2)", content)
 
 if __name__ == '__main__':
     unittest.main()
