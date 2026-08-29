@@ -163,12 +163,12 @@ Then run `source ~/.zshrc` or `source ~/.bashrc`.
 
 ## ☁️ Using OpenAI / Cloud APIs Instead of Ollama
 
-If you don't want to run Ollama locally and prefer cloud AI APIs (like OpenAI GPT-4o), edit `Logic/ai_utils.py` and replace the Ollama request with:
+If you don't want to run Ollama locally and prefer cloud AI APIs (like OpenAI GPT-4o), edit `Logic/ai_utils.py` and replace the request with:
 
 ```python
 import os, requests
 
-def generate_commit_message(diff_text):
+def generate_commit_options(diff_text):
     api_key = os.getenv("OPENAI_API_KEY")
     response = requests.post("https://api.openai.com/v1/chat/completions", headers={
         "Authorization": f"Bearer {api_key}"
@@ -176,10 +176,11 @@ def generate_commit_message(diff_text):
         "model": "gpt-4o-mini",
         "messages": [{
             "role": "user",
-            "content": f"Generate a short, one-line Conventional Commit message for this diff:\n\n{diff_text}"
+            "content": f"Generate 3 distinct Conventional Commit message options for this diff:\n\n{diff_text}"
         }]
     })
-    return response.json()["choices"][0]["message"]["content"].strip()
+    msg = response.json()["choices"][0]["message"]["content"].strip()
+    return [msg]
 ```
 
 Add `OPENAI_API_KEY=your_key_here` into your `.env` file.

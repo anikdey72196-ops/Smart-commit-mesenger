@@ -85,9 +85,3 @@ def parse_options_from_response(raw_text):
     # 3. Last fallback: return raw text as single option if non-empty
     single = raw_text.strip().strip('"\'[]')
     return [single] if single else []
-
-def generate_commit_message(diff_text):
-    """Backwards compatibility helper returning first option as single string."""
-    opts = generate_commit_options(diff_text)
-    return opts[0] if opts else "update project files"
-
