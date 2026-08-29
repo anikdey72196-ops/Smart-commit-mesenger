@@ -2,6 +2,11 @@ import os
 import csv
 import datetime
 
+def sanitize_for_csv(value):
+    if isinstance(value, str) and value.startswith(('=', '+', '-', '@', '\t', '\r')):
+        return "'" + value
+    return value
+
 def log_commit(commit_msg):
     try:
         repo_name = os.path.basename(os.path.abspath(os.getcwd()))
@@ -13,10 +18,17 @@ def log_commit(commit_msg):
         csv_path = os.path.join(os.path.dirname(script_dir), "commit_history.csv")
         file_exists = os.path.isfile(csv_path)
         
+        row = [
+            sanitize_for_csv(owner_name),
+            sanitize_for_csv(repo_name),
+            sanitize_for_csv(commit_date),
+            sanitize_for_csv(commit_msg),
+        ]
+
         with open(csv_path, "a", newline="", encoding="utf-8") as csv_file:
             writer = csv.writer(csv_file)
             if not file_exists:
                 writer.writerow(["Owner", "Repository", "Date", "Message"])
-            writer.writerow([owner_name, repo_name, commit_date, commit_msg])
+            writer.writerow(row)
     except Exception as e:
         print(f"Failed to save to CSV log: {e}")
