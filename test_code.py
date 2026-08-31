@@ -1,6 +1,7 @@
 import unittest
 import sys
 import os
+import json
 import tempfile
 from unittest.mock import patch, MagicMock
 
@@ -51,6 +52,17 @@ class TestAIUtils(unittest.TestCase):
         options = parse_options_from_response(list_input)
         self.assertEqual(len(options), 3)
         self.assertEqual(options[0], "feat: option one")
+
+    @patch('urllib.request.urlopen')
+    def test_generate_commit_options_stdlib(self, mock_urlopen):
+        mock_response = MagicMock()
+        mock_response.read.return_value = json.dumps({"response": '["feat: stdlib test"]'}).encode('utf-8')
+        mock_response.__enter__.return_value = mock_response
+        mock_urlopen.return_value = mock_response
+
+        from ai_utils import generate_commit_options
+        options = generate_commit_options("dummy diff")
+        self.assertEqual(options, ["feat: stdlib test"])
 
 class TestLoggerUtils(unittest.TestCase):
     def test_sanitize_for_csv(self):

@@ -1,4 +1,5 @@
-import requests
+import urllib.request
+import urllib.error
 import time
 import sys
 import json
@@ -6,7 +7,7 @@ import os
 import re
 
 def generate_commit_options(diff_text):
-    """Generates 3 distinct commit message options from git diff using AI."""
+    """Generates 3 distinct commit message options from git diff using pure Python stdlib."""
     max_retries = 3
     model_name = os.getenv("OLLAMA_MODEL", "qwen2.5-coder:7b")
     host_url = os.getenv("OLLAMA_HOST", "http://localhost:11434").rstrip("/")
@@ -29,23 +30,27 @@ def generate_commit_options(diff_text):
         f"Diff:\n{diff_text}"
     )
 
+    payload = json.dumps({
+        "model": model_name,
+        "prompt": prompt,
+        "stream": False,
+        "options": {
+            "num_predict": 120,
+            "temperature": 0.5
+        }
+    }).encode("utf-8")
+
+    headers = {"Content-Type": "application/json"}
+
     for attempt in range(max_retries):
         try:
-            response = requests.post(api_endpoint, json={
-                "model": model_name,
-                "prompt": prompt,
-                "stream": False,
-                "options": {
-                    "num_predict": 120,
-                    "temperature": 0.5
-                }
-            }, timeout=35)
-            response.raise_for_status()
-
-            raw_text = response.json().get("response", "").strip()
-            options = parse_options_from_response(raw_text)
-            if options:
-                return options
+            req = urllib.request.Request(api_endpoint, data=payload, headers=headers, method="POST")
+            with urllib.request.urlopen(req, timeout=35) as response:
+                response_data = json.loads(response.read().decode("utf-8"))
+                raw_text = response_data.get("response", "").strip()
+                options = parse_options_from_response(raw_text)
+                if options:
+                    return options
             
         except Exception as e:
             if attempt < max_retries - 1:

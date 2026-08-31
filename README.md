@@ -6,6 +6,7 @@ An AI-powered Git workflow automation tool that automatically generates Conventi
 
 ## 🌟 Key Features
 
+- 📦 **Zero Third-Party Runtime Dependencies**: Built 100% with the Python Standard Library (`urllib.request`, `subprocess`, `argparse`, `threading`, `csv`, `json`). No `pip install` required!
 - 🎯 **Multiple Commit Message Choices**: AI generates 3 distinct commit options (short, scoped, action-oriented) so you can pick your favorite, edit it, or write your own.
 - 🧠 **Local & Private AI**: Runs 100% locally using [Ollama](https://ollama.com/) (`qwen2.5-coder`), keeping your code completely private.
 - ⚡ **One-Command Workflow**: Replaces `git add`, `git commit`, and `git push` with a single command: `smartcommit`.
@@ -52,21 +53,11 @@ cd "Smart commit mesenger"
 
 ---
 
-### Step 3: Set Up Python Virtual Environment
-Create and activate a virtual environment, then install required packages:
+### Step 3: Zero Dependency Verification (No Pip Install Needed!)
+Since Smart Commit Messenger is built using 100% Python Standard Library, **no pip packages are required**! You can run it directly:
 
-#### Windows (Command Prompt / PowerShell):
 ```bash
-python -m venv venv
-.\venv\Scripts\activate
-pip install requests python-dotenv
-```
-
-#### macOS / Linux:
-```bash
-python3 -m venv venv
-source venv/bin/activate
-pip install requests python-dotenv
+python Logic/code.py --help
 ```
 
 ---
