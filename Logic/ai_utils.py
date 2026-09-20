@@ -11,6 +11,10 @@ def generate_commit_options(diff_text):
     max_retries = 3
     model_name = os.getenv("OLLAMA_MODEL", "gpt-oss:20b-cloud")
     host_url = os.getenv("OLLAMA_HOST", "http://localhost:11434").rstrip("/")
+    num_predict = int(os.getenv("OLLAMA_NUM_PREDICT", "1024"))
+    timeout_sec = int(os.getenv("OLLAMA_TIMEOUT", "60"))
+    temperature = float(os.getenv("OLLAMA_TEMPERATURE", "0.4"))
+
     if "0.0.0.0" in host_url:
         host_url = host_url.replace("0.0.0.0", "localhost")
     if not host_url.startswith("http://") and not host_url.startswith("https://"):
@@ -35,8 +39,8 @@ def generate_commit_options(diff_text):
         "prompt": prompt,
         "stream": False,
         "options": {
-            "num_predict": 120,
-            "temperature": 0.5
+            "num_predict": num_predict,
+            "temperature": temperature
         }
     }).encode("utf-8")
 
@@ -45,13 +49,31 @@ def generate_commit_options(diff_text):
     for attempt in range(max_retries):
         try:
             req = urllib.request.Request(api_endpoint, data=payload, headers=headers, method="POST")
-            with urllib.request.urlopen(req, timeout=35) as response:
+            with urllib.request.urlopen(req, timeout=timeout_sec) as response:
                 response_data = json.loads(response.read().decode("utf-8"))
                 raw_text = response_data.get("response", "").strip()
+                done_reason = response_data.get("done_reason")
+                
                 options = parse_options_from_response(raw_text)
                 if options:
                     return options
-            
+
+                if done_reason == "length":
+                    print("\n[Warning] Model reached maximum token generation limit.")
+                    print("Reasoning models require more tokens. Try increasing OLLAMA_NUM_PREDICT in .env (e.g. 1500).")
+
+        except urllib.error.HTTPError as e:
+            if e.code == 404:
+                print(f"\n[Error 404] Model '{model_name}' was not found on Ollama at {host_url}.")
+                print(f"Please check your .env file or run 'ollama pull {model_name}'.")
+                print("Run 'ollama list' in your terminal to view currently installed models.")
+                sys.exit(1)
+            if attempt < max_retries - 1:
+                print(f"[Attempt {attempt + 1}/{max_retries}] HTTP error ({e}). Retrying in 2 seconds...")
+                time.sleep(2)
+            else:
+                print(f"\nError communicating with Ollama: {e}")
+                sys.exit(1)
         except Exception as e:
             if attempt < max_retries - 1:
                 print(f"[Attempt {attempt + 1}/{max_retries}] Connection issue ({e}). Retrying in 2 seconds...")
@@ -65,28 +87,45 @@ def generate_commit_options(diff_text):
 
 def parse_options_from_response(raw_text):
     """Parses JSON array or fallback numbered/bulleted list from LLM output."""
-    # Strip markdown codeblocks if present
-    cleaned = re.sub(r"^```[a-zA-Z]*\n?", "", raw_text).rstrip("`\n\r ")
-    
-    # 1. Try parsing JSON array directly
+    if not raw_text:
+        return []
+
+    # Strip thinking/reasoning tags (e.g. <think>...</think>) from reasoning models
+    cleaned = re.sub(r"<think>[\s\S]*?</think>", "", raw_text).strip()
+
+    # 1. Strip markdown code fences if wrapped in ``` or ```json
+    cleaned_fences = re.sub(r"^```(?:json)?\s*", "", cleaned, flags=re.IGNORECASE)
+    cleaned_fences = re.sub(r"\s*```$", "", cleaned_fences).strip()
+
+    # Try parsing JSON array directly
     try:
-        data = json.loads(cleaned)
+        data = json.loads(cleaned_fences)
         if isinstance(data, list) and len(data) > 0:
             return [str(item).strip() for item in data if str(item).strip()][:3]
     except Exception:
         pass
 
-    # 2. Fallback: Parse line-by-line (e.g. 1. msg, 2. msg, or - msg)
-    lines = [line.strip() for line in raw_text.splitlines() if line.strip()]
+    # 2. Try regex extraction of JSON array [...] anywhere in the text
+    json_match = re.search(r"\[\s*\"(?:\\.|[^\"])*\"[\s\S]*?\]", cleaned)
+    if json_match:
+        try:
+            data = json.loads(json_match.group(0))
+            if isinstance(data, list) and len(data) > 0:
+                return [str(item).strip() for item in data if str(item).strip()][:3]
+        except Exception:
+            pass
+
+    # 3. Fallback: Parse line-by-line (e.g. 1. msg, 2. msg, or - msg)
+    lines = [line.strip() for line in cleaned.splitlines() if line.strip()]
     parsed = []
     for line in lines:
         cleaned_line = re.sub(r"^(\d+[\.\)]|\-|\*)\s*", "", line).strip().strip('"\'')
-        if cleaned_line and len(cleaned_line) > 3:
+        if cleaned_line and len(cleaned_line) > 3 and not cleaned_line.startswith("```"):
             parsed.append(cleaned_line)
     
     if parsed:
         return parsed[:3]
     
-    # 3. Last fallback: return raw text as single option if non-empty
-    single = raw_text.strip().strip('"\'[]')
+    # 4. Last fallback: return raw text as single option if non-empty
+    single = cleaned.strip().strip('"\'[]')
     return [single] if single else []

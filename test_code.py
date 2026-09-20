@@ -53,6 +53,23 @@ class TestAIUtils(unittest.TestCase):
         self.assertEqual(len(options), 3)
         self.assertEqual(options[0], "feat: option one")
 
+    def test_parse_reasoning_think_tags(self):
+        think_input = '<think>\nAnalyzing the git diff...\nNeed 3 options.\n</think>\n["feat: add login", "fix: resolve bug"]'
+        options = parse_options_from_response(think_input)
+        self.assertEqual(len(options), 2)
+        self.assertEqual(options[0], "feat: add login")
+        self.assertEqual(options[1], "fix: resolve bug")
+
+    def test_parse_embedded_json_in_text(self):
+        conversational_input = 'Here are 3 Conventional Commit options based on your diff:\n```json\n["feat: add login", "fix: resolve bug"]\n```\nLet me know if you need more!'
+        options = parse_options_from_response(conversational_input)
+        self.assertEqual(len(options), 2)
+        self.assertEqual(options[0], "feat: add login")
+
+    def test_parse_empty_input(self):
+        self.assertEqual(parse_options_from_response(""), [])
+        self.assertEqual(parse_options_from_response(None), [])
+
     @patch('urllib.request.urlopen')
     def test_generate_commit_options_stdlib(self, mock_urlopen):
         mock_response = MagicMock()
