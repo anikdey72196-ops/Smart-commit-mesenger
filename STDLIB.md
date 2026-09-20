@@ -20,6 +20,7 @@ Below is the complete log documenting what packages developers normally use for 
 | **8** | `pytest` | `unittest`, `unittest.mock` | Implemented test suites and subprocess/HTTP mocks using standard library `unittest.TestCase` and `unittest.mock.patch`. |
 | **9** | `pydantic` / `json-parser` | `json`, `re` | Parsed structured LLM JSON responses with defensive fallback regex parsing (`re.sub`, `re.finditer`) to handle markdown backticks (` ```json `) and numbered lists. |
 | **10** | `sys-encoding` | `sys.stdout.reconfigure()` | Handled cross-platform terminal UTF-8 character encoding on Windows (`cp1252` workaround) using `sys.stdout.reconfigure(encoding="utf-8")`. |
+| **11** | `trufflehog` / `detect-secrets` | `re` (Pre-compiled regex engines) | Built an in-engine pre-commit credential and secret scanner in `Logic/security_utils.py` targeting API keys, private keys, `.env` file leaks, and stray debuggers without external scanning binaries or packages. |
 
 ---
 

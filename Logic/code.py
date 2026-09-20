@@ -4,6 +4,7 @@ from config import load_environment
 from git_utils import is_git_repo, get_current_branch, get_diff, get_diff_stats, commit_and_push, get_recent_commits
 from ai_utils import generate_commit_options
 from logger import log_commit
+from security_utils import scan_diff_for_secrets, print_security_report
 from ui_utils import (
     print_banner,
     print_diff_stats,
@@ -18,6 +19,7 @@ def main():
     parser = argparse.ArgumentParser(description="Smart commit message generator")
     parser.add_argument("-y", "--yes", action="store_true", help="Skip confirmation and auto-select first option")
     parser.add_argument("--dry-run", action="store_true", help="Only show messages, don't commit")
+    parser.add_argument("--no-verify", "--skip-security", dest="no_verify", action="store_true", help="Bypass pre-commit security & secret scan")
     
     args = parser.parse_args()
 
@@ -45,14 +47,29 @@ def main():
         print_warning("No staged or unstaged changes detected to commit.")
         sys.exit(0)
 
-    # 5. Show formatted diff stats
+    # 5. Pre-Commit Security & Secret Leak Guardrails
+    if not args.no_verify:
+        report = scan_diff_for_secrets(diff_text)
+        if report["findings"]:
+            print_security_report(report)
+            if report["has_critical"]:
+                print_error("CRITICAL: Sensitive files or secrets detected in your changes!")
+            else:
+                print_warning("WARNING: Debug statements or code smells detected in your changes.")
+            
+            confirm = input("Are you sure you want to proceed with this commit? (y/N): ").strip().lower()
+            if confirm not in ["y", "yes"]:
+                print_warning("Commit aborted for security reasons.")
+                sys.exit(1)
+
+    # 6. Show formatted diff stats
     stats = get_diff_stats()
     print_diff_stats(stats, branch_name=branch_name)
 
-    # 6. Fetch recent repository commit messages for style matching
+    # 7. Fetch recent repository commit messages for style matching
     recent_commits = get_recent_commits(limit=5)
 
-    # 7. Truncate diff if too long to prevent LLM overload
+    # 8. Truncate diff if too long to prevent LLM overload
     if len(diff_text) > 3000:
         diff_text = diff_text[:3000] + "\n... (truncated)"
 

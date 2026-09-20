@@ -144,5 +144,85 @@ class TestLoggerUtils(unittest.TestCase):
                     content = f.read()
                     self.assertIn("'=SUM(1,2)", content)
 
+from security_utils import scan_diff_for_secrets, mask_secret
+
+class TestSecurityUtils(unittest.TestCase):
+    def test_mask_secret(self):
+        self.assertEqual(mask_secret("short"), "****")
+        self.assertEqual(mask_secret("AKIA1234567890EXAMPLE"), "AKIA*************MPLE")
+
+    def test_clean_diff_no_findings(self):
+        diff = (
+            "diff --git a/app.py b/app.py\n"
+            "--- a/app.py\n"
+            "+++ b/app.py\n"
+            "@@ -1 +1 @@\n"
+            "+print('hello world')\n"
+        )
+        report = scan_diff_for_secrets(diff)
+        self.assertFalse(report["has_critical"])
+        self.assertFalse(report["has_warnings"])
+        self.assertEqual(len(report["findings"]), 0)
+
+    def test_detect_sensitive_file(self):
+        diff = (
+            "diff --git a/.env b/.env\n"
+            "--- /dev/null\n"
+            "+++ b/.env\n"
+            "@@ -0,0 +1 @@\n"
+            "+SECRET=12345\n"
+        )
+        report = scan_diff_for_secrets(diff)
+        self.assertTrue(report["has_critical"])
+        self.assertTrue(any(f["type"] == "SENSITIVE_FILE" for f in report["findings"]))
+
+    def test_ignore_example_env_file(self):
+        diff = (
+            "diff --git a/.env.example b/.env.example\n"
+            "--- /dev/null\n"
+            "+++ b/.env.example\n"
+            "@@ -0,0 +1 @@\n"
+            "+OLLAMA_MODEL=model\n"
+        )
+        report = scan_diff_for_secrets(diff)
+        self.assertFalse(report["has_critical"])
+
+    def test_detect_api_keys(self):
+        gh_sample = "gh" + "p_ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
+        google_sample = "AI" + "zaSyD-1234567890abcdefghijklmnopqrst"
+        openai_sample = "s" + "k-abcdefghijklmnopqrstuvwxyz12345"
+        aws_sample = "AK" + "IAIOSFODNN7EXAMPLE"
+        diff = (
+            "diff --git a/config.py b/config.py\n"
+            "--- a/config.py\n"
+            "+++ b/config.py\n"
+            f"@@ -1 +1,4 @@\n"
+            f"+gh_token = '{gh_sample}'\n"
+            f"+google_key = '{google_sample}'\n"
+            f"+openai_key = '{openai_sample}'\n"
+            f"+aws_key = '{aws_sample}'\n"
+        )
+        report = scan_diff_for_secrets(diff)
+        self.assertTrue(report["has_critical"])
+        secret_findings = [f for f in report["findings"] if f["type"] == "SECRET"]
+        self.assertEqual(len(secret_findings), 4)
+
+    def test_detect_debug_statements(self):
+        c_log = "console." + "log"
+        d_bug = "debug" + "ger;"
+        diff = (
+            "diff --git a/debug.js b/debug.js\n"
+            "--- a/debug.js\n"
+            "+++ b/debug.js\n"
+            f"@@ -1 +1,2 @@\n"
+            f"+{c_log}('debugging value');\n"
+            f"+{d_bug}\n"
+        )
+        report = scan_diff_for_secrets(diff)
+        self.assertFalse(report["has_critical"])
+        self.assertTrue(report["has_warnings"])
+        debug_findings = [f for f in report["findings"] if f["type"] == "DEBUG"]
+        self.assertEqual(len(debug_findings), 2)
+
 if __name__ == '__main__':
     unittest.main()
