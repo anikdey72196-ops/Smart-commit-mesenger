@@ -9,7 +9,7 @@ import re
 def generate_commit_options(diff_text):
     """Generates 3 distinct commit message options from git diff using pure Python stdlib."""
     max_retries = 3
-    model_name = os.getenv("OLLAMA_MODEL", "qwen2.5-coder:7b")
+    model_name = os.getenv("OLLAMA_MODEL", "gpt-oss:20b-cloud")
     host_url = os.getenv("OLLAMA_HOST", "http://localhost:11434").rstrip("/")
     if "0.0.0.0" in host_url:
         host_url = host_url.replace("0.0.0.0", "localhost")
