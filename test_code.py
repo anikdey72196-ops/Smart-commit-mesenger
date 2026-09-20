@@ -9,7 +9,7 @@ from unittest.mock import patch, MagicMock
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "Logic"))
 
 import logger
-from git_utils import get_diff
+from git_utils import get_diff, get_recent_commits
 from ai_utils import parse_options_from_response
 from logger import sanitize_for_csv, log_commit
 
@@ -31,6 +31,24 @@ class TestGitUtils(unittest.TestCase):
 
         result = get_diff(staged=False)
         self.assertEqual(result, "unstaged diff output")
+
+    @patch('subprocess.run')
+    def test_get_recent_commits_filters_merges_and_limits(self, mock_run):
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+        mock_result.stdout = (
+            "refactor: update Ollama config\n"
+            "Merge branch 'main' of repo\n"
+            "feat: add CLI spinner\n"
+            "Merge pull request #1 from user/branch\n"
+            "fix: sanitize csv\n"
+            "docs: update readme\n"
+        )
+        mock_run.return_value = mock_result
+
+        commits = get_recent_commits(limit=3)
+        self.assertEqual(len(commits), 3)
+        self.assertEqual(commits, ["refactor: update Ollama config", "feat: add CLI spinner", "fix: sanitize csv"])
 
 class TestAIUtils(unittest.TestCase):
     def test_parse_json_array(self):
@@ -80,6 +98,26 @@ class TestAIUtils(unittest.TestCase):
         from ai_utils import generate_commit_options
         options = generate_commit_options("dummy diff")
         self.assertEqual(options, ["feat: stdlib test"])
+
+    @patch('urllib.request.urlopen')
+    def test_generate_commit_options_with_recent_commits(self, mock_urlopen):
+        mock_response = MagicMock()
+        mock_response.read.return_value = json.dumps({"response": '["feat: style matched"]'}).encode('utf-8')
+        mock_response.__enter__.return_value = mock_response
+        mock_urlopen.return_value = mock_response
+
+        from ai_utils import generate_commit_options
+        recent = ["feat(auth): add JWT tokens", "fix(db): handle pool leak"]
+        options = generate_commit_options("dummy diff", recent_commits=recent)
+        self.assertEqual(options, ["feat: style matched"])
+
+        # Verify that prompt includes the recent commit history for style reference
+        call_args = mock_urlopen.call_args
+        req = call_args[0][0]
+        payload = json.loads(req.data.decode("utf-8"))
+        self.assertIn("Recent commit messages in this repository", payload["prompt"])
+        self.assertIn("feat(auth): add JWT tokens", payload["prompt"])
+        self.assertIn("fix(db): handle pool leak", payload["prompt"])
 
 class TestLoggerUtils(unittest.TestCase):
     def test_sanitize_for_csv(self):

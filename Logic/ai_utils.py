@@ -6,7 +6,7 @@ import json
 import os
 import re
 
-def generate_commit_options(diff_text):
+def generate_commit_options(diff_text, recent_commits=None):
     """Generates 3 distinct commit message options from git diff using pure Python stdlib."""
     max_retries = 3
     model_name = os.getenv("OLLAMA_MODEL", "gpt-oss:20b-cloud")
@@ -23,12 +23,22 @@ def generate_commit_options(diff_text):
         host_url = f"{host_url}:11434"
     api_endpoint = f"{host_url}/api/generate"
 
+    style_context = ""
+    if recent_commits:
+        formatted_history = "\n".join(f"- {msg}" for msg in recent_commits[:5])
+        style_context = (
+            "\nRecent commit messages in this repository (for style and convention reference):\n"
+            f"{formatted_history}\n"
+            "Align your generated messages with this repository's established tone, formatting, and naming style.\n"
+        )
+
     prompt = (
         "Generate exactly 3 distinct, high-quality commit message options for the following git diff "
         "using Conventional Commits format (e.g., feat:, fix:, docs:, refactor:, style:).\n\n"
         "Option 1: Short and concise.\n"
         "Option 2: Scoped and descriptive (e.g. feat(auth): ...).\n"
-        "Option 3: Action-oriented summary.\n\n"
+        "Option 3: Action-oriented summary.\n"
+        f"{style_context}\n"
         'Output ONLY a valid JSON array of 3 strings, e.g.: ["feat: update login UI", "feat(auth): add JWT handling", "refactor: clean up user auth"]. '
         "Do NOT include markdown formatting or extra text.\n\n"
         f"Diff:\n{diff_text}"

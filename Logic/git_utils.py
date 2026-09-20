@@ -34,6 +34,28 @@ def get_diff_stats():
         out = result.stdout.strip()
     return out
 
+def get_recent_commits(limit=5):
+    """Fetch recent commit messages to understand repository naming conventions and style."""
+    try:
+        result = subprocess.run(
+            ["git", "log", f"-n", str(limit * 2), "--pretty=format:%s"],
+            capture_output=True, text=True, encoding="utf-8", errors="replace"
+        )
+        if result.returncode != 0:
+            return []
+        
+        commits = []
+        for line in result.stdout.splitlines():
+            line = line.strip()
+            # Filter out automated merge commits or empty lines
+            if line and not line.lower().startswith(("merge branch", "merge pull request", "merge remote-tracking")):
+                commits.append(line)
+            if len(commits) >= limit:
+                break
+        return commits
+    except Exception:
+        return []
+
 def commit_and_push(commit_msg, used_unstaged):
     if used_unstaged:
         subprocess.run(["git", "commit", "-a", "-m", commit_msg], check=True)

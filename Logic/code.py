@@ -1,7 +1,7 @@
 import sys
 import argparse
 from config import load_environment
-from git_utils import is_git_repo, get_current_branch, get_diff, get_diff_stats, commit_and_push
+from git_utils import is_git_repo, get_current_branch, get_diff, get_diff_stats, commit_and_push, get_recent_commits
 from ai_utils import generate_commit_options
 from logger import log_commit
 from ui_utils import (
@@ -49,13 +49,16 @@ def main():
     stats = get_diff_stats()
     print_diff_stats(stats, branch_name=branch_name)
 
-    # 6. Truncate diff if too long to prevent LLM overload
+    # 6. Fetch recent repository commit messages for style matching
+    recent_commits = get_recent_commits(limit=5)
+
+    # 7. Truncate diff if too long to prevent LLM overload
     if len(diff_text) > 3000:
         diff_text = diff_text[:3000] + "\n... (truncated)"
 
-    # 7. Generate commit options with Animated Spinner
+    # 8. Generate commit options with Animated Spinner
     with Spinner("Analyzing diff & generating commit message options..."):
-        options = generate_commit_options(diff_text)
+        options = generate_commit_options(diff_text, recent_commits=recent_commits)
 
     if not options:
         print_error("Error: Could not generate commit message options.")
