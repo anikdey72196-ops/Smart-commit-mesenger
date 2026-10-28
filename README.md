@@ -37,7 +37,7 @@ Follow these steps to set up Smart Commit Messenger on your machine:
 Open your terminal (PowerShell / Command Prompt / Terminal) and run:
 
 ```bash
-ollama pull qwen2.5-coder:7b
+ollama pull gpt-oss:20b-cloud 
 ```
 *(If your computer has lower RAM/VRAM, you can pull the lightweight 3B model instead: `ollama pull gpt-oss:20b-cloud `)*
 
