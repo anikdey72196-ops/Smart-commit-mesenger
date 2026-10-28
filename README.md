@@ -8,7 +8,7 @@ An AI-powered Git workflow automation tool that automatically generates Conventi
 
 - 📦 **Zero Third-Party Runtime Dependencies**: Built 100% with the Python Standard Library (`urllib.request`, `subprocess`, `argparse`, `threading`, `csv`, `json`). No `pip install` required!
 - 🎯 **Multiple Commit Message Choices**: AI generates 3 distinct commit options (short, scoped, action-oriented) so you can pick your favorite, edit it, or write your own.
-- 🧠 **Local & Private AI**: Runs 100% locally using [Ollama](https://ollama.com/) (`qwen2.5-coder`), keeping your code completely private.
+- 🧠 **Local & Private AI**: Runs 100% locally using [Ollama](https://ollama.com/) (`gpt-oss:20b-cloud `), keeping your code completely private.
 - ⚡ **One-Command Workflow**: Replaces `git add`, `git commit`, and `git push` with a single command: `smartcommit`.
 - 📁 **Auto-Detects Untracked Files**: Automatically stages brand-new files with `git add .`.
 - 🔗 **Auto Upstream Setup**: Automatically links new local branches to GitHub on first push (`git push -u origin <branch>`).
@@ -39,7 +39,7 @@ Open your terminal (PowerShell / Command Prompt / Terminal) and run:
 ```bash
 ollama pull qwen2.5-coder:7b
 ```
-*(If your computer has lower RAM/VRAM, you can pull the lightweight 3B model instead: `ollama pull qwen2.5-coder:3b`)*
+*(If your computer has lower RAM/VRAM, you can pull the lightweight 3B model instead: `ollama pull gpt-oss:20b-cloud `)*
 
 ---
 
@@ -77,10 +77,10 @@ cp .env.example .env
 
 Ensure `.env` contains:
 ```env
-OLLAMA_MODEL=qwen2.5-coder:7b
+OLLAMA_MODEL=gpt-oss:20b-cloud 
 OLLAMA_HOST=http://localhost:11434
 ```
-*(If you pulled `qwen2.5-coder:3b` in Step 1, update `OLLAMA_MODEL=qwen2.5-coder:3b` inside `.env`).*
+*(If you pulled `gpt-oss:20b-cloud ` in Step 1, update `OLLAMA_MODEL=gpt-oss:20b-cloud ` inside `.env`).*
 
 ---
 
@@ -147,8 +147,8 @@ Then run `source ~/.zshrc` or `source ~/.bashrc`.
    - Log the entry in `commit_history.csv`
 
 ### Useful Flags
-- `smartcommit -y` : Skip confirmation and commit/push immediately.
-- `smartcommit --dry-run` : Show generated message without committing or pushing.
+- `smartcommit -y`: Skip confirmation and commit/push immediately.
+- `smartcommit --dry-run`:  Show generated message without committing or pushing.
 
 ---
 
@@ -174,14 +174,14 @@ def generate_commit_options(diff_text):
     return [msg]
 ```
 
-Add `OPENAI_API_KEY=your_key_here` into your `.env` file.
+Add `OPENAI_API_KEY=your_key_here` to your `.env` file.
 
 ---
 
 ## ❓ Troubleshooting
 
 - **`smartcommit` is not recognized as a command**:
-  Ensure you added the `Smart commit mesenger` directory to your system PATH or shell profile, and restart your terminal.
+  Ensure you added the `Smart commit messenger` directory to your system PATH or shell profile, and restart your terminal.
 - **Connection refused / Ollama busy**:
   Make sure Ollama is running in your system tray or run `ollama serve` in a separate terminal.
 - **Not a git repository**:
