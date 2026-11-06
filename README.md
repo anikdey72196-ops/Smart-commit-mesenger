@@ -7,9 +7,18 @@ An AI-powered Git workflow automation tool that automatically generates Conventi
 ## 🌟 Key Features
 
 - 📦 **Zero Third-Party Runtime Dependencies**: Built 100% with the Python Standard Library (`urllib.request`, `subprocess`, `argparse`, `threading`, `csv`, `json`). No `pip install` required!
+- 🌿 **Branch Flexibility & Switching**: Ask about branches on every run. Switch between branches, create brand new feature branches on the fly, or push to different remote branches according to your necessity.
+- 🤝 **Collaborative Merging Agent**: Automatically detects incoming commits pushed by your friends/teammates on GitHub. Pulls and merges teammate changes cleanly with auto-stashing of your work in progress.
+- 🔀 **Smart Branch-to-Branch Merging**: Run as a dedicated merging agent (`smartcommit -m`) to merge a teammate's feature branch or remote branch directly into your working branch.
+- 🧠 **AI Merge Conflict Assistant**: If merge conflicts occur, local Ollama AI inspects the conflict markers and explains what your code did vs what your friend's code did, providing step-by-step resolution advice.
 - 🎯 **Multiple Commit Message Choices**: AI generates 3 distinct commit options (short, scoped, action-oriented) so you can pick your favorite, edit it, or write your own.
+<<<<<<< Updated upstream
 - 🧠 **Local & Private AI**: Runs 100% locally using [Ollama](https://ollama.com/) (`gpt-oss:20b-cloud `), keeping your code completely private.
 - ⚡ **One-Command Workflow**: Replaces `git add`, `git commit`, and `git push` with a single command: `smartcommit`.
+=======
+- 🧠 **Local & Private AI**: Runs 100% locally using [Ollama](https://ollama.com/) (`qwen2.5-coder`), keeping your code completely private.
+- ⚡ **One-Command Workflow**: Replaces `git add`, `git commit`, `git merge`, and `git push` with a single command: `smartcommit`.
+>>>>>>> Stashed changes
 - 📁 **Auto-Detects Untracked Files**: Automatically stages brand-new files with `git add .`.
 - 🔗 **Auto Upstream Setup**: Automatically links new local branches to GitHub on first push (`git push -u origin <branch>`).
 - 📜 **Commit Logging**: Saves all commit history locally into `commit_history.csv`.
@@ -147,8 +156,20 @@ Then run `source ~/.zshrc` or `source ~/.bashrc`.
    - Log the entry in `commit_history.csv`
 
 ### Useful Flags
+<<<<<<< Updated upstream
 - `smartcommit -y`: Skip confirmation and commit/push immediately.
 - `smartcommit --dry-run`:  Show generated message without committing or pushing.
+=======
+- `smartcommit -y` : Skip confirmation and commit/push immediately with first suggested message.
+- `smartcommit --dry-run` : Show generated commit messages without committing or pushing.
+- `smartcommit -b <branch>` : Switch to an existing branch before committing.
+- `smartcommit -B <branch>` : Create and switch to a new branch before committing.
+- `smartcommit -m [branch]` : Launch the **Merging Agent** to merge a friend's branch into current branch.
+- `smartcommit --sync` / `--pull` : Sync & merge incoming teammate commits from remote repository.
+- `smartcommit --no-sync` : Bypass checking remote for teammate commits.
+- `smartcommit --target-branch <branch>` : Push commits to a specific remote branch.
+- `smartcommit --no-verify` : Bypass pre-commit security & secret scan.
+>>>>>>> Stashed changes
 
 ---
 

@@ -9,8 +9,33 @@ from unittest.mock import patch, MagicMock
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "Logic"))
 
 import logger
-from git_utils import get_diff, get_recent_commits
-from ai_utils import parse_options_from_response
+from git_utils import (
+    get_diff,
+    get_recent_commits,
+    get_current_branch,
+    get_default_remote,
+    get_local_branches,
+    get_remote_branches,
+    switch_branch,
+    fetch_remote,
+    get_incoming_commits,
+    has_uncommitted_changes,
+    stash_changes,
+    pop_stash,
+    merge_branch,
+    abort_merge,
+    get_conflicted_files,
+    get_conflict_diff,
+    commit_and_push
+)
+from ai_utils import parse_options_from_response, explain_merge_conflicts
+from ui_utils import (
+    print_incoming_commits,
+    print_branch_status,
+    print_branch_list,
+    print_conflict_report,
+    print_conflict_options
+)
 from logger import sanitize_for_csv, log_commit
 
 class TestGitUtils(unittest.TestCase):
@@ -223,6 +248,159 @@ class TestSecurityUtils(unittest.TestCase):
         self.assertTrue(report["has_warnings"])
         debug_findings = [f for f in report["findings"] if f["type"] == "DEBUG"]
         self.assertEqual(len(debug_findings), 2)
+
+class TestBranchAndMergeUtils(unittest.TestCase):
+    @patch('subprocess.run')
+    def test_get_local_branches(self, mock_run):
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+        mock_result.stdout = "main\nfeature-auth\ndev\n"
+        mock_run.return_value = mock_result
+
+        branches = get_local_branches()
+        self.assertEqual(branches, ["main", "feature-auth", "dev"])
+
+    @patch('subprocess.run')
+    def test_get_remote_branches_filters_head(self, mock_run):
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+        mock_result.stdout = "origin\norigin/main\norigin/feature-friend\norigin/HEAD\n"
+        mock_run.return_value = mock_result
+
+        branches = get_remote_branches(remote="origin")
+        self.assertEqual(branches, ["origin/main", "origin/feature-friend"])
+
+    @patch('subprocess.run')
+    def test_switch_branch_existing(self, mock_run):
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+        mock_result.stdout = "Switched to branch 'feature-auth'"
+        mock_run.return_value = mock_result
+
+        ok, msg = switch_branch("feature-auth", create=False)
+        self.assertTrue(ok)
+        mock_run.assert_called_with(
+            ["git", "checkout", "feature-auth"],
+            capture_output=True, text=True, encoding='utf-8', errors='replace'
+        )
+
+    @patch('subprocess.run')
+    def test_switch_branch_create(self, mock_run):
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+        mock_result.stdout = "Switched to a new branch 'feature-new'"
+        mock_run.return_value = mock_result
+
+        ok, msg = switch_branch("feature-new", create=True)
+        self.assertTrue(ok)
+        mock_run.assert_called_with(
+            ["git", "checkout", "-b", "feature-new"],
+            capture_output=True, text=True, encoding='utf-8', errors='replace'
+        )
+
+    @patch('subprocess.run')
+    def test_get_incoming_commits_from_teammates(self, mock_run):
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+        mock_result.stdout = (
+            "abc1234|alice|2 hours ago|feat: add team dashboard\n"
+            "def5678|bob|1 hour ago|fix: resolve race condition\n"
+        )
+        mock_run.return_value = mock_result
+
+        commits = get_incoming_commits(branch_name="main", remote="origin")
+        self.assertEqual(len(commits), 2)
+        self.assertEqual(commits[0]["hash"], "abc1234")
+        self.assertEqual(commits[0]["author"], "alice")
+        self.assertEqual(commits[0]["message"], "feat: add team dashboard")
+        self.assertEqual(commits[1]["author"], "bob")
+
+    @patch('git_utils.has_uncommitted_changes', return_value=False)
+    @patch('subprocess.run')
+    def test_merge_branch_clean_success(self, mock_run, mock_has_changes):
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+        mock_result.stdout = "Updating 1d36dab..793e9bc\nFast-forward\n"
+        mock_run.return_value = mock_result
+
+        res = merge_branch("origin/main", auto_stash=True)
+        self.assertTrue(res["success"])
+        self.assertEqual(res["conflicts"], [])
+        self.assertFalse(res["stashed"])
+
+    @patch('git_utils.get_conflicted_files', return_value=["Logic/code.py", "README.md"])
+    @patch('git_utils.has_uncommitted_changes', return_value=False)
+    @patch('subprocess.run')
+    def test_merge_branch_conflict(self, mock_run, mock_has_changes, mock_conflicts):
+        mock_result = MagicMock()
+        mock_result.returncode = 1
+        mock_result.stderr = "CONFLICT (content): Merge conflict in Logic/code.py"
+        mock_run.return_value = mock_result
+
+        res = merge_branch("origin/feature-friend", auto_stash=True)
+        self.assertFalse(res["success"])
+        self.assertEqual(res["conflicts"], ["Logic/code.py", "README.md"])
+
+    @patch('subprocess.run')
+    def test_abort_merge(self, mock_run):
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+        mock_run.return_value = mock_result
+
+        ok, msg = abort_merge()
+        self.assertTrue(ok)
+        self.assertIn("aborted", msg.lower())
+
+    @patch('git_utils.get_current_branch', return_value="main")
+    @patch('git_utils.get_default_remote', return_value="origin")
+    @patch('subprocess.run')
+    def test_commit_and_push_target_branch(self, mock_run, mock_remote, mock_branch):
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+        mock_result.stdout = "Everything up-to-date"
+        mock_result.stderr = ""
+        mock_run.return_value = mock_result
+
+        res = commit_and_push("feat: test", used_unstaged=True, target_branch="feature-collab")
+        self.assertTrue(res["success"])
+
+    @patch('git_utils.get_current_branch', return_value="main")
+    @patch('git_utils.get_default_remote', return_value="origin")
+    @patch('subprocess.run')
+    def test_commit_and_push_detects_non_fast_forward_collision(self, mock_run, mock_remote, mock_branch):
+        mock_result = MagicMock()
+        mock_result.returncode = 1
+        mock_result.stderr = "error: failed to push some refs to 'origin'\nhint: Updates were rejected because the remote contains work that you do\nhint: not have locally. Fetch first."
+        mock_result.stdout = ""
+        mock_run.return_value = mock_result
+
+        res = commit_and_push("feat: test", used_unstaged=False, target_branch="main")
+        self.assertFalse(res["success"])
+        self.assertTrue(res["rejected_non_fast_forward"])
+
+class TestAIConflictResolution(unittest.TestCase):
+    @patch('urllib.request.urlopen')
+    def test_explain_merge_conflicts_ai(self, mock_urlopen):
+        mock_response = MagicMock()
+        mock_response.read.return_value = json.dumps({
+            "response": "Here is the conflict breakdown:\n1. Local branch added security checks.\n2. Remote branch updated models.\n3. Recommend keeping both."
+        }).encode('utf-8')
+        mock_response.__enter__.return_value = mock_response
+        mock_urlopen.return_value = mock_response
+
+        diff = "<<<<<<< HEAD\nlocal\n=======\nfriend\n>>>>>>> origin/main\n"
+        explanation = explain_merge_conflicts(["test.py"], diff)
+        self.assertIn("Local branch added security checks", explanation)
+
+class TestUIBranchAndMerge(unittest.TestCase):
+    def test_ui_helpers_no_crash(self):
+        # Ensure UI render functions execute safely without crashing
+        commits = [{"hash": "abc1234", "author": "friend", "time": "2 hours ago", "message": "feat: friend work"}]
+        print_incoming_commits(commits, "origin/main")
+        print_branch_status("main", "origin/main")
+        print_branch_list(["main", "feature-auth"], "main")
+        print_conflict_report(["file1.py"])
+        print_conflict_options()
 
 if __name__ == '__main__':
     unittest.main()

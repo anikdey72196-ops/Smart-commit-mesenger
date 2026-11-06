@@ -83,12 +83,12 @@ def print_banner():
     """Prints a stylish ASCII header banner."""
     if HAS_RICH:
         title = Text("🚀 SMART COMMIT MESSENGER", style="bold cyan")
-        subtitle = Text("Local AI-Powered Git Workflow Automation", style="dim white")
+        subtitle = Text("Local AI-Powered Git Workflow & Merging Agent", style="dim white")
         console.print(Panel.fit(f"{title}\n{subtitle}", border_style="bold blue"))
     else:
         print(f"\n{CYAN}{BOLD}===================================================={RESET}")
         print(f"{CYAN}{BOLD} 🚀 SMART COMMIT MESSENGER{RESET}")
-        print(f"{DIM} Local AI-Powered Git Workflow Automation{RESET}")
+        print(f"{DIM} Local AI-Powered Git Workflow & Merging Agent{RESET}")
         print(f"{CYAN}{BOLD}===================================================={RESET}\n")
 
 def print_diff_stats(stats_text, branch_name=""):
@@ -106,7 +106,6 @@ def print_diff_stats(stats_text, branch_name=""):
         if branch_info:
             print(f"   {branch_info}")
         for line in stats_text.splitlines():
-            # Colorize insertions and deletions
             colored_line = line.replace("+", f"{GREEN}+{RESET}").replace("-", f"{RED}-{RESET}")
             print(f"   {colored_line}")
         print()
@@ -126,6 +125,94 @@ def print_options(options):
             print(f"  {CYAN}{BOLD}[{idx}]{RESET} {opt}")
         print(f"  {YELLOW}{BOLD}[e]{RESET} Edit / Enter custom message")
         print(f"  {RED}{BOLD}[c]{RESET} Cancel commit")
+        print()
+
+def print_incoming_commits(commits, branch_name=""):
+    """Displays incoming commits from teammates on remote."""
+    if not commits:
+        return
+
+    count = len(commits)
+    title = f"🔔 Teammate Updates Detected ({count} new commit{'s' if count > 1 else ''})"
+
+    if HAS_RICH:
+        content = ""
+        for c in commits:
+            h = f"[bold cyan]{c.get('hash', '')}[/bold cyan]"
+            a = f"[bold yellow]{c.get('author', 'Unknown')}[/bold yellow]"
+            t = f"[dim]({c.get('time', '')})[/dim]"
+            m = c.get('message', '')
+            content += f"• {h} by {a} {t}: {m}\n"
+        console.print(Panel(content.strip(), title=title, border_style="cyan"))
+    else:
+        print(f"\n{CYAN}{BOLD}🔔 Teammate Updates Detected ({count} new commit{'s' if count > 1 else ''}):{RESET}")
+        for c in commits:
+            h = f"{CYAN}{BOLD}{c.get('hash', '')}{RESET}"
+            a = f"{YELLOW}{c.get('author', 'Unknown')}{RESET}"
+            t = f"{DIM}({c.get('time', '')}){RESET}"
+            m = c.get('message', '')
+            print(f"  • {h} by {a} {t}: {m}")
+        print()
+
+def print_branch_status(current_branch, upstream=None):
+    """Prints active branch status."""
+    if HAS_RICH:
+        up_text = f" [dim](tracks [cyan]{upstream}[/cyan])[/dim]" if upstream else ""
+        console.print(f"[bold yellow]🌿 Active Branch:[/bold yellow] [bold green]{current_branch}[/bold green]{up_text}")
+    else:
+        up_text = f" (tracks {upstream})" if upstream else ""
+        print(f"{YELLOW}{BOLD}🌿 Active Branch:{RESET} {GREEN}{BOLD}{current_branch}{RESET}{DIM}{up_text}{RESET}")
+
+def print_branch_list(branches, current_branch=None):
+    """Displays formatted list of branches for switching or merging."""
+    if not branches:
+        print_warning("No branches found.")
+        return
+
+    if HAS_RICH:
+        content = ""
+        for idx, b in enumerate(branches, 1):
+            is_cur = " [bold green](current)[/bold green]" if b == current_branch else ""
+            content += f"[bold cyan][{idx}][/bold cyan] {b}{is_cur}\n"
+        console.print(Panel(content.strip(), title="🌿 Available Branches", border_style="blue"))
+    else:
+        print(f"\n{CYAN}{BOLD}🌿 Available Branches:{RESET}")
+        for idx, b in enumerate(branches, 1):
+            is_cur = f" {GREEN}(current){RESET}" if b == current_branch else ""
+            print(f"  {CYAN}{BOLD}[{idx}]{RESET} {b}{is_cur}")
+        print()
+
+def print_conflict_report(conflicts):
+    """Displays a warning panel for merge conflicts."""
+    if not conflicts:
+        return
+
+    if HAS_RICH:
+        content = "[bold red]Automatic merge failed due to conflicting changes in:[/bold red]\n"
+        for f in conflicts:
+            content += f"  • [bold yellow]{f}[/bold yellow]\n"
+        console.print(Panel(content.strip(), title="⚠️ MERGE CONFLICT DETECTED", border_style="red"))
+    else:
+        print(f"\n{RED}{BOLD}⚠️ MERGE CONFLICT DETECTED:{RESET}")
+        print(f"{RED}Automatic merge failed due to conflicting changes in:{RESET}")
+        for f in conflicts:
+            print(f"  • {YELLOW}{BOLD}{f}{RESET}")
+        print()
+
+def print_conflict_options():
+    """Displays resolution choices when conflicts occur."""
+    if HAS_RICH:
+        content = (
+            "[bold cyan][1][/bold cyan] Keep conflict markers (resolve manually in code editor)\n"
+            "[bold magenta][2][/bold magenta] Explain conflicts with AI (get step-by-step resolution advice)\n"
+            "[bold red][3][/bold red] Abort merge (restore working directory)"
+        )
+        console.print(Panel(content, title="🛠️ Merge Resolution Options", border_style="yellow"))
+    else:
+        print(f"{YELLOW}{BOLD}🛠️ Merge Resolution Options:{RESET}")
+        print(f"  {CYAN}{BOLD}[1]{RESET} Keep conflict markers (resolve manually in code editor)")
+        print(f"  {MAGENTA}{BOLD}[2]{RESET} Explain conflicts with AI (get step-by-step resolution advice)")
+        print(f"  {RED}{BOLD}[3]{RESET} Abort merge (restore working directory)")
         print()
 
 def print_success(message):

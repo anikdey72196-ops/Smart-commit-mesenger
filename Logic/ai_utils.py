@@ -6,22 +6,26 @@ import json
 import os
 import re
 
-def generate_commit_options(diff_text, recent_commits=None):
-    """Generates 3 distinct commit message options from git diff using pure Python stdlib."""
-    max_retries = 3
-    model_name = os.getenv("OLLAMA_MODEL", "gpt-oss:20b-cloud")
+def _get_ollama_endpoint():
+    """Builds and returns formatted Ollama API endpoint."""
     host_url = os.getenv("OLLAMA_HOST", "http://localhost:11434").rstrip("/")
-    num_predict = int(os.getenv("OLLAMA_NUM_PREDICT", "1024"))
-    timeout_sec = int(os.getenv("OLLAMA_TIMEOUT", "60"))
-    temperature = float(os.getenv("OLLAMA_TEMPERATURE", "0.4"))
-
     if "0.0.0.0" in host_url:
         host_url = host_url.replace("0.0.0.0", "localhost")
     if not host_url.startswith("http://") and not host_url.startswith("https://"):
         host_url = f"http://{host_url}"
     if ":" not in host_url.replace("http://", "").replace("https://", ""):
         host_url = f"{host_url}:11434"
-    api_endpoint = f"{host_url}/api/generate"
+    return f"{host_url}/api/generate", host_url
+
+def generate_commit_options(diff_text, recent_commits=None):
+    """Generates 3 distinct commit message options from git diff using pure Python stdlib."""
+    max_retries = 3
+    model_name = os.getenv("OLLAMA_MODEL", "gpt-oss:20b-cloud")
+    num_predict = int(os.getenv("OLLAMA_NUM_PREDICT", "1024"))
+    timeout_sec = int(os.getenv("OLLAMA_TIMEOUT", "60"))
+    temperature = float(os.getenv("OLLAMA_TEMPERATURE", "0.4"))
+
+    api_endpoint, host_url = _get_ollama_endpoint()
 
     style_context = ""
     if recent_commits:
@@ -94,6 +98,58 @@ def generate_commit_options(diff_text, recent_commits=None):
                 sys.exit(1)
     
     return []
+
+def explain_merge_conflicts(conflicted_files, conflict_diff):
+    """
+    Uses local Ollama model to analyze git conflict diff and provide
+    clear explanations of differences and step-by-step resolution advice.
+    """
+    if not conflict_diff:
+        return "No conflict markers detected in diff."
+
+    model_name = os.getenv("OLLAMA_MODEL", "gpt-oss:20b-cloud")
+    timeout_sec = int(os.getenv("OLLAMA_TIMEOUT", "60"))
+    api_endpoint, _ = _get_ollama_endpoint()
+
+    # Truncate diff if very long to prevent model timeout
+    if len(conflict_diff) > 3000:
+        conflict_diff = conflict_diff[:3000] + "\n... (truncated)"
+
+    files_str = ", ".join(conflicted_files) if conflicted_files else "Unknown files"
+    prompt = (
+        "You are an expert Git collaboration and merging assistant.\n"
+        f"A git merge conflict occurred in the following file(s): {files_str}.\n\n"
+        "Here is the git conflict diff with markers (<<<<<<< HEAD, =======, >>>>>>>):\n"
+        f"{conflict_diff}\n\n"
+        "Provide a clear, helpful resolution guide formatted as follows:\n"
+        "1. Current branch changes (what your local branch did).\n"
+        "2. Incoming teammate changes (what your friend/collaborator did).\n"
+        "3. Recommended resolution (how to combine or choose between them).\n"
+        "Keep it practical, clear, and direct."
+    )
+
+    payload = json.dumps({
+        "model": model_name,
+        "prompt": prompt,
+        "stream": False,
+        "options": {
+            "num_predict": 1024,
+            "temperature": 0.3
+        }
+    }).encode("utf-8")
+
+    headers = {"Content-Type": "application/json"}
+
+    try:
+        req = urllib.request.Request(api_endpoint, data=payload, headers=headers, method="POST")
+        with urllib.request.urlopen(req, timeout=timeout_sec) as response:
+            response_data = json.loads(response.read().decode("utf-8"))
+            raw_text = response_data.get("response", "").strip()
+            # Strip reasoning tags if present
+            cleaned = re.sub(r"<think>[\s\S]*?</think>", "", raw_text).strip()
+            return cleaned or "No AI advice generated."
+    except Exception as e:
+        return f"AI conflict explanation could not be generated: {e}"
 
 def parse_options_from_response(raw_text):
     """Parses JSON array or fallback numbered/bulleted list from LLM output."""
