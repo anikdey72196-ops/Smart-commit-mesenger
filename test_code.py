@@ -368,11 +368,16 @@ class TestBranchAndMergeUtils(unittest.TestCase):
     @patch('git_utils.get_default_remote', return_value="origin")
     @patch('subprocess.run')
     def test_commit_and_push_detects_non_fast_forward_collision(self, mock_run, mock_remote, mock_branch):
-        mock_result = MagicMock()
-        mock_result.returncode = 1
-        mock_result.stderr = "error: failed to push some refs to 'origin'\nhint: Updates were rejected because the remote contains work that you do\nhint: not have locally. Fetch first."
-        mock_result.stdout = ""
-        mock_run.return_value = mock_result
+        commit_res = MagicMock()
+        commit_res.returncode = 0
+        commit_res.stdout = "[main 1234567] feat: test"
+
+        push_res = MagicMock()
+        push_res.returncode = 1
+        push_res.stderr = "error: failed to push some refs to 'origin'\nhint: Updates were rejected because the remote contains work that you do\nhint: not have locally. Fetch first."
+        push_res.stdout = ""
+
+        mock_run.side_effect = [commit_res, push_res]
 
         res = commit_and_push("feat: test", used_unstaged=False, target_branch="main")
         self.assertFalse(res["success"])

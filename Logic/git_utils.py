@@ -285,6 +285,8 @@ def commit_and_push(commit_msg, used_unstaged, target_branch=None, remote=None, 
     Supports targeting custom remote branches and handles upstream setup or non-fast-forward collisions.
     Returns status dict: {"success": bool, "message": str, "rejected_non_fast_forward": bool, "error": str}
     """
+    import time
+
     if not remote:
         remote = get_default_remote()
     active_branch = get_current_branch()
@@ -294,10 +296,50 @@ def commit_and_push(commit_msg, used_unstaged, target_branch=None, remote=None, 
     if not only_push:
         if used_unstaged:
             # Stage all files including newly created untracked files
-            subprocess.run(["git", "add", "."], check=True)
-            subprocess.run(["git", "commit", "-m", commit_msg], check=True)
-        else:
-            subprocess.run(["git", "commit", "-m", commit_msg], check=True)
+            add_res = subprocess.run(
+                ["git", "add", "."],
+                capture_output=True, text=True, encoding="utf-8", errors="replace"
+            )
+            if add_res.returncode != 0:
+                err_msg = (add_res.stderr or add_res.stdout).strip()
+                print_error(f"Failed to stage changes: {err_msg}")
+                return {"success": False, "error": err_msg}
+
+        # Attempt commit with automatic retry for transient index.lock contention (e.g. OneDrive / VS Code)
+        commit_res = None
+        for attempt in range(3):
+            commit_res = subprocess.run(
+                ["git", "commit", "-m", commit_msg],
+                capture_output=True, text=True, encoding="utf-8", errors="replace"
+            )
+            if commit_res.returncode == 0:
+                break
+
+            err_out = (commit_res.stderr or commit_res.stdout).strip()
+            # If index.lock or file access lock was encountered, retry after short sleep
+            if ("index.lock" in err_out.lower() or "permission denied" in err_out.lower()) and attempt < 2:
+                time.sleep(1)
+                continue
+            else:
+                break
+
+        if commit_res.returncode != 0:
+            err_msg = (commit_res.stderr or commit_res.stdout).strip()
+            if "index.lock" in err_msg.lower():
+                print_error("Git lock detected: '.git/index.lock' is held by another process (e.g. OneDrive or background git).")
+                print_warning("If no other Git operation is running, you can remove '.git/index.lock' and retry.")
+            elif "tell me who you are" in err_msg.lower():
+                print_error("Git user identity not configured.")
+                print_warning("Please configure your Git identity:")
+                print_warning("  git config --global user.name 'Your Name'")
+                print_warning("  git config --global user.email 'you@example.com'")
+            elif "nothing to commit" in err_msg.lower():
+                print_warning("Nothing to commit: working tree is clean.")
+                return {"success": True, "message": "Nothing to commit"}
+            else:
+                print_error(f"Commit failed: {err_msg}")
+            return {"success": False, "error": err_msg}
+
         print_success("Committed locally!")
 
     # 2. Push to remote

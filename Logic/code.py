@@ -337,19 +337,23 @@ def main():
     # 16. Execute Commit, Push, and Collision Recovery
     push_res = commit_and_push(selected_msg, used_unstaged, target_branch=target_push_branch)
 
-    # Handle teammate concurrent push collision
-    if isinstance(push_res, dict) and not push_res.get("success") and push_res.get("rejected_non_fast_forward"):
-        print_warning(f"Push rejected: Teammates pushed new commits to '{target_push_branch}' while you were working.")
-        retry_ans = input("Would you like to merge teammate commits and retry push? (Y/n): ").strip().lower()
-        if retry_ans in ["", "y", "yes"]:
-            fetch_remote()
-            upstream_ref = f"origin/{target_push_branch}"
-            m_res = merge_branch(upstream_ref, auto_stash=False)
-            if m_res["success"]:
-                print_success("Merged teammate commits! Retrying push...")
-                commit_and_push(None, used_unstaged=False, target_branch=target_push_branch, only_push=True)
-            else:
-                handle_conflict_resolution(m_res["conflicts"])
+    if not push_res.get("success"):
+        # Handle teammate concurrent push collision
+        if push_res.get("rejected_non_fast_forward"):
+            print_warning(f"Push rejected: Teammates pushed new commits to '{target_push_branch}' while you were working.")
+            retry_ans = input("Would you like to merge teammate commits and retry push? (Y/n): ").strip().lower()
+            if retry_ans in ["", "y", "yes"]:
+                fetch_remote()
+                upstream_ref = f"origin/{target_push_branch}"
+                m_res = merge_branch(upstream_ref, auto_stash=False)
+                if m_res["success"]:
+                    print_success("Merged teammate commits! Retrying push...")
+                    retry_push = commit_and_push(None, used_unstaged=False, target_branch=target_push_branch, only_push=True)
+                    if retry_push.get("success"):
+                        log_commit(selected_msg)
+                else:
+                    handle_conflict_resolution(m_res["conflicts"])
+        return
 
     log_commit(selected_msg)
 
