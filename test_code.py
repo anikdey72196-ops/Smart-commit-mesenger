@@ -144,6 +144,24 @@ class TestAIUtils(unittest.TestCase):
         self.assertIn("feat(auth): add JWT tokens", payload["prompt"])
         self.assertIn("fix(db): handle pool leak", payload["prompt"])
 
+    @patch('urllib.request.urlopen')
+    def test_generate_commit_options_http_402_exit(self, mock_urlopen):
+        import urllib.error
+        from io import BytesIO
+        err_body = json.dumps({"error": "Add usage credits"}).encode('utf-8')
+        mock_err = urllib.error.HTTPError(
+            url="http://127.0.0.1:11434/api/generate",
+            code=402,
+            msg="Payment Required",
+            hdrs={},
+            fp=BytesIO(err_body)
+        )
+        mock_urlopen.side_effect = mock_err
+
+        from ai_utils import generate_commit_options
+        with self.assertRaises(SystemExit):
+            generate_commit_options("dummy diff")
+
 class TestLoggerUtils(unittest.TestCase):
     def test_sanitize_for_csv(self):
         self.assertEqual(sanitize_for_csv("=1+2"), "'=1+2")

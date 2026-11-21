@@ -8,9 +8,11 @@ import re
 
 def _get_ollama_endpoint():
     """Builds and returns formatted Ollama API endpoint."""
-    host_url = os.getenv("OLLAMA_HOST", "http://localhost:11434").rstrip("/")
+    host_url = os.getenv("OLLAMA_HOST", "http://127.0.0.1:11434").rstrip("/")
     if "0.0.0.0" in host_url:
-        host_url = host_url.replace("0.0.0.0", "localhost")
+        host_url = host_url.replace("0.0.0.0", "127.0.0.1")
+    if "localhost" in host_url:
+        host_url = host_url.replace("localhost", "127.0.0.1")
     if not host_url.startswith("http://") and not host_url.startswith("https://"):
         host_url = f"http://{host_url}"
     if ":" not in host_url.replace("http://", "").replace("https://", ""):
@@ -77,16 +79,34 @@ def generate_commit_options(diff_text, recent_commits=None):
                     print("Reasoning models require more tokens. Try increasing OLLAMA_NUM_PREDICT in .env (e.g. 1500).")
 
         except urllib.error.HTTPError as e:
-            if e.code == 404:
+            error_body = ""
+            try:
+                raw_err = e.read().decode("utf-8")
+                err_json = json.loads(raw_err)
+                error_body = err_json.get("error", raw_err)
+            except Exception:
+                error_body = str(e)
+
+            if e.code == 402:
+                print(f"\n[Error 402: Payment Required] Model '{model_name}' requires an Ollama Cloud subscription or credits.")
+                if error_body:
+                    print(f"Ollama message: {error_body}")
+                print("\n💡 Fix: Switch to a free, 100% local model:")
+                print("   1. Open a terminal and run: ollama pull qwen2.5-coder:7b (or qwen2.5-coder:1.5b)")
+                print("   2. In your .env file, update: OLLAMA_MODEL=qwen2.5-coder:7b")
+                sys.exit(1)
+            elif e.code == 404:
                 print(f"\n[Error 404] Model '{model_name}' was not found on Ollama at {host_url}.")
+                if error_body and "not found" not in error_body.lower():
+                    print(f"Ollama message: {error_body}")
                 print(f"Please check your .env file or run 'ollama pull {model_name}'.")
                 print("Run 'ollama list' in your terminal to view currently installed models.")
                 sys.exit(1)
             if attempt < max_retries - 1:
-                print(f"[Attempt {attempt + 1}/{max_retries}] HTTP error ({e}). Retrying in 2 seconds...")
+                print(f"[Attempt {attempt + 1}/{max_retries}] HTTP error ({e.code} - {error_body}). Retrying in 2 seconds...")
                 time.sleep(2)
             else:
-                print(f"\nError communicating with Ollama: {e}")
+                print(f"\nError communicating with Ollama: HTTP {e.code} - {error_body}")
                 sys.exit(1)
         except Exception as e:
             if attempt < max_retries - 1:
@@ -148,6 +168,15 @@ def explain_merge_conflicts(conflicted_files, conflict_diff):
             # Strip reasoning tags if present
             cleaned = re.sub(r"<think>[\s\S]*?</think>", "", raw_text).strip()
             return cleaned or "No AI advice generated."
+    except urllib.error.HTTPError as e:
+        error_body = ""
+        try:
+            error_body = json.loads(e.read().decode("utf-8")).get("error", "")
+        except Exception:
+            pass
+        if e.code == 402:
+            return f"Model '{model_name}' requires an Ollama Cloud subscription/credits (HTTP 402: {error_body}). Please configure a free local model like qwen2.5-coder:7b in .env."
+        return f"AI conflict explanation could not be generated: HTTP {e.code} - {error_body or e}"
     except Exception as e:
         return f"AI conflict explanation could not be generated: {e}"
 
